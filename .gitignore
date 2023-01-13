@@ -1,0 +1,10 @@
+# VS Code Config
+.vscode
+# Python Cache
+__pycache__
+# Dataset
+data
+# Intermediate Data
+var
+# MacOS System Generated File
+.DS_Store
