@@ -2,8 +2,9 @@ import sys
 import torch
 import numpy as np
 from tqdm import tqdm
-from env import ensureDir
+from env import ensureDir, set_sigint, check_sigint
 from score import score
+from signal import signal, SIGINT
 
 
 class Module(torch.nn.Module):
@@ -32,7 +33,10 @@ class Module(torch.nn.Module):
     def run_train(self, train_loader, optimizer, lossFunction, epochs=1, kFoldRatio=1.0, report=True, file=sys.stdout, work_path=None):
         if work_path is not None:
             ensureDir(work_path)
+        signal(SIGINT, set_sigint)
         for epoch in range(epochs):
+            if check_sigint():
+                return
             # Make the index start from 0
             epoch += 1
             # Progress bar
@@ -41,6 +45,8 @@ class Module(torch.nn.Module):
             loss = None
             scores = []
             for batch, truth, _ in prog:
+                if check_sigint():
+                    return
                 batch = batch.to(self.device)
                 truth = truth.to(self.device)
                 # Forward pass
@@ -77,6 +83,8 @@ class Module(torch.nn.Module):
                 output = self(data)
                 _, d, w, h = output.shape
                 result = output.view((d, w, h)).transpose(0, 2)
+                result = result - torch.min(result)
+                result = result / torch.max(result)
                 result = torch.round(result * 255.0).type(torch.uint8)
                 np.save(str(work_path / name), result.detach().cpu().numpy())
                 # Report progress on demand

@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from os import mkdir, environ
 from os.path import exists, dirname, realpath
@@ -38,3 +39,20 @@ def ensureDir(path):
     VAR_PATH,
     RUN_PATH
 ]]
+
+flag_sigint = False
+
+def set_sigint(*args):
+    global flag_sigint
+    if flag_sigint:
+        sys.exit(0)
+    else:
+        flag_sigint = True
+        print("SIG_INT flag set. Press CTRL-C again to exit immediately")
+
+def check_sigint():
+    global flag_sigint
+    if flag_sigint:
+        flag_sigint = False
+        return True
+    return False

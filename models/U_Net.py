@@ -6,31 +6,31 @@ from torchvision import transforms
 from dataset import Sample_t
 from env import DEVICE
 
-BCE = nn.BCELoss().to(DEVICE)
-def lossFunction(pred, truth):
-    truth = truth
-    return BCE(pred, truth)
+# lossFunction = nn.CrossEntropyLoss().to(DEVICE)
+lossFunction = nn.BCEWithLogitsLoss().to(DEVICE)
 
 Features_T = List[torch.Tensor]
 
 class U_Node(nn.Module):
     def __init__(self, in_ch, out_ch):
         super().__init__()
+        self.norm = nn.BatchNorm2d(in_ch)
         self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
-        self.relu1 = nn.ReLU()
-        self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1)
-        self.relu2 = nn.ReLU()
+        self.relu1 = nn.LeakyReLU()
+        # self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1)
+        # self.relu2 = nn.ReLU()
 
     def forward(self, x):
-        out = self.conv1(x)
+        out = self.norm(x)
+        out = self.conv1(out)
         out = self.relu1(out)
-        out = self.conv2(out)
-        out = self.relu2(out)
+        # out = self.conv2(out)
+        # out = self.relu2(out)
         return out
 
 
 class Encoder(nn.Module):
-    def __init__(self, sample: Sample_t, channels = [64, 128, 256, 512, 1024, 2048]):
+    def __init__(self, sample: Sample_t, channels = [16, 32, 64, 128, 256, 512, 1024]):
         super().__init__()
         # Downscaler
         self.pool = nn.MaxPool2d((2, 2))
@@ -40,6 +40,7 @@ class Encoder(nn.Module):
         print("Encoder input shape", s.shape)
         # Generate node list according to input sample and channels
         for c in channels:
+            s = self.pool(s)
             # Get dimensions out of the current sample
             _, d, _, _ = s.shape
             # Create new node layer using the sample
@@ -47,7 +48,6 @@ class Encoder(nn.Module):
             # Iterate the sample
             s = layer(s)
             print("Encoder node shape", s.shape)
-            s = self.pool(s)
             # Append layer to node list
             nodes.append(layer)
         # Instantiate node list
@@ -56,14 +56,14 @@ class Encoder(nn.Module):
     def forward(self, x) -> Features_T:
         features = []
         for node in self.nodes:
+            x = self.pool(x)
             x = node(x)
             features.append(x)
-            x = self.pool(x)
         return features
 
 
 class Decoder(nn.Module):
-    def __init__(self, sample: tuple[Features_T, torch.Tensor], channels=[1024, 512]):
+    def __init__(self, sample: tuple[Features_T, torch.Tensor], channels=[1000, 800, 600, 400]):
         super().__init__()
         # Initialize samples
         s_in, s_out = sample
@@ -120,13 +120,13 @@ class Model(Module):
         _, _, w, h = sample_out.shape
         self.scaler = transforms.Resize((w, h))
         s = self.scaler(s)
-        self.sigmoid = nn.Sigmoid()
-        s = self.sigmoid(s)
+        # self.sigmoid = nn.Sigmoid()
+        # s = self.sigmoid(s)
         print("Final result shape", s.shape)
 
     def forward(self, x):
         out = self.encoder(x)
         out = self.decoder(out)
         out = self.scaler(out)
-        out = self.sigmoid(out)
+        # out = self.sigmoid(out)
         return out

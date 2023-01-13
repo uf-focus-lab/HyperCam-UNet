@@ -2,17 +2,14 @@
 # Python Packages
 import sys
 from os.path import exists, basename
+from tkinter.filedialog import askopenfilename
 # PIP Packages
 import cv2 as cv
 import numpy as np
 # Custom Packages
 import env
 
-if len(sys.argv) <= 1:
-	print("usage: check.py path/to/result.npy", file=sys.stderr)
-	sys.exit(1)
-
-RESULT_PATH = sys.argv[1]
+RESULT_PATH = sys.argv[1] if len(sys.argv) > 1 else askopenfilename(defaultextension=".npy", initialdir=str(env.RUN_PATH))
 
 if not exists(RESULT_PATH):
 	print("File \"{}\" does not exist".format(RESULT_PATH), file=sys.stderr)
