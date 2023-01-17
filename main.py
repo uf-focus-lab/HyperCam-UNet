@@ -25,7 +25,7 @@ parser = argparse.ArgumentParser(
     description='Train and test ML models with given parameters',
     epilog='Author: Yuxuan Zhang (zhangyuxuan@ufl.edu)')
 parser.add_argument('-m', '--model', type=str, default="U_Net", help="Name of the model ({})".format(", ".join(MODELS.keys())))
-parser.add_argument('-e', '--epochs', type=int, default=10, help="Number of epoches")
+parser.add_argument('-e', '--epochs', type=int, default=10, help="Number of epochs")
 parser.add_argument('-b', '--batchSize', type=int, default=10, help="Batch size")
 parser.add_argument('-l', '--lossFunction', type=str, default="", help="Loss function (not implemented yet)")
 parser.add_argument('-r', '--learningRate', type=float, default=1e-6, help="Learning rate")
