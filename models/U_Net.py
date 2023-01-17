@@ -6,26 +6,39 @@ from torchvision import transforms
 from dataset import Sample_t
 from env import DEVICE
 
+class CustomLoss(nn.Module):
+    def __init__(self):
+        super(CustomLoss, self).__init__()
+
+    def forward(self, pred, truth):
+        return torch.sum(torch.abs(truth - pred))
+
+# lossFunction = nn.BCEWithLogitsLoss().to(DEVICE)
 # lossFunction = nn.CrossEntropyLoss().to(DEVICE)
-lossFunction = nn.BCEWithLogitsLoss().to(DEVICE)
+lossFunction = CustomLoss().to(DEVICE)
 
 Features_T = List[torch.Tensor]
 
 class U_Node(nn.Module):
     def __init__(self, in_ch, out_ch):
         super().__init__()
-        self.norm = nn.BatchNorm2d(in_ch)
+        # self.norm1 = nn.BatchNorm2d(in_ch)
         self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
-        self.relu1 = nn.LeakyReLU()
-        # self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1)
-        # self.relu2 = nn.ReLU()
+        self.relu1 = nn.ReLU()
+        # self.norm2 = nn.BatchNorm2d(out_ch)
+        self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1)
+        self.relu2 = nn.ReLU()
+        # Random init
+        for layer in [self.conv1, self.conv2]:
+            nn.init.normal_(layer.weight, mean=0, std=1e-4)
 
     def forward(self, x):
-        out = self.norm(x)
-        out = self.conv1(out)
+        # out = self.norm1(x)
+        out = self.conv1(x)
         out = self.relu1(out)
-        # out = self.conv2(out)
-        # out = self.relu2(out)
+        # out = self.norm2(out)
+        out = self.conv2(out)
+        out = self.relu2(out)
         return out
 
 
@@ -63,17 +76,20 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, sample: tuple[Features_T, torch.Tensor], channels=[1000, 800, 600, 400]):
+    def __init__(self, sample: tuple[Features_T, torch.Tensor], channels=[1000, 800, 600, 400, 300]):
         super().__init__()
         # Initialize samples
         s_in, s_out = sample
-        s_in = s_in[::-1]
-        s, features = s_in[0], s_in[1:]
-        print("Decoder input shape", s.shape)
         # Initialize parameters
         channels.append(s_out.shape[1])
         self.layer_count = len(channels)
+        # Decompose packed tensors
+        s_in = s_in[::-1]
+        offset = len(s_in) - self.layer_count
+        s, features = s_in[0], s_in[offset:]
+        print("Decoder input shape", s.shape)
         upconvs = []
+        scalers = []
         dec_nodes = []
         # Generate layers
         for i in range(len(channels)):
@@ -84,7 +100,12 @@ class Decoder(nn.Module):
             upconvs.append(upconv)
             # Iterate input sample
             s: torch.Tensor = upconv(s)
-            s = torch.cat([s, features[i]], dim=1)
+            # Generate scaler
+            _, _, w, h = s.shape
+            scaler = transforms.Resize((w, h))
+            scalers.append(scaler)
+            f = scaler(features[i])
+            s = torch.cat([s, f], dim=1)
             _, d, _, _ = s.shape
             # Concat sample with features
             decoder = U_Node(d, c)
@@ -93,14 +114,17 @@ class Decoder(nn.Module):
             print("Decoder node shape", s.shape)
 
         self.upconvs = nn.ModuleList(upconvs)
+        self.scalers = nn.ModuleList(scalers)
         self.dec_nodes = nn.ModuleList(dec_nodes)
 
     def forward(self, features: Features_T):
         features = features[::-1]
-        x, features = features[0], features[1:]
+        offset = len(features) - self.layer_count
+        x, features = features[0], features[offset:]
         for i in range(self.layer_count):
             x = self.upconvs[i](x)
-            x = torch.cat([x, features[i]], dim=1)
+            f = self.scalers[i](features[i])
+            x = torch.cat([x, f], dim=1)
             x = self.dec_nodes[i](x)
         return x
 

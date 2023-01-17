@@ -15,21 +15,6 @@ class Module(torch.nn.Module):
         super().__init__()
         self.device = device
 
-    def forward_hook(self, layer, name):
-        self.activation[name] = []
-
-        def hook(model, input, output):
-            self.activation[name].append(output.detach().cpu())
-        layer.register_forward_hook(hook)
-
-    def clear_activation(self):
-        for name in self.activation:
-            self.activation[name] = []
-
-    def collect(self, activation_name):
-        # return flatten(self.activation[activation_name])
-        pass
-
     def run_train(self, train_loader, optimizer, lossFunction, epochs=1, kFoldRatio=1.0, report=True, file=sys.stdout, work_path=None):
         if work_path is not None:
             ensureDir(work_path)
@@ -83,9 +68,9 @@ class Module(torch.nn.Module):
                 output = self(data)
                 _, d, w, h = output.shape
                 result = output.view((d, w, h)).transpose(0, 2)
-                result = result - torch.min(result)
-                result = result / torch.max(result)
-                result = torch.round(result * 255.0).type(torch.uint8)
+                result[result < 0] = 0
+                result[result > 1] = 1
+                result = torch.round(result * 255).type(torch.uint8)
                 np.save(str(work_path / name), result.detach().cpu().numpy())
                 # Report progress on demand
                 if (report):
