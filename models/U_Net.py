@@ -1,5 +1,5 @@
 from module import Module
-from typing import List
+from typing import List, Tuple
 import torch
 import torch.nn as nn
 from torchvision import transforms
@@ -76,7 +76,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, sample: tuple[Features_T, torch.Tensor], channels=[1000, 800, 600, 400, 300]):
+    def __init__(self, sample: Tuple[Features_T, torch.Tensor], channels=[1000, 800, 600, 400, 300]):
         super().__init__()
         # Initialize samples
         s_in, s_out = sample
