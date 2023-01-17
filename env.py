@@ -14,7 +14,12 @@ def getDevice(force_cpu = False):
         return 'cpu'
     if torch.cuda.is_available():
         # Nvidia Cuda
-        return 'cuda'
+        if "CUDA_DEVICE" in environ:
+            return "cuda:{}".format(environ["CUDA_DEVICE"])
+        elif "CUDA_DEV" in environ:
+            return "cuda:{}".format(environ["CUDA_DEV"])
+        else:
+            return 'cuda'
     if torch.backends.mps.is_available():
         # MacOS metal
         return 'mps'
