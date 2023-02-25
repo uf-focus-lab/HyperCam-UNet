@@ -21,7 +21,7 @@ MODELS = {
 
 # Arguments
 parser = argparse.ArgumentParser(
-    prog='main.py [run-all | train | test]',
+    prog='CUDA_DEV[ICE]=* main.py [run-all | train | test]',
     description='Train and test ML models with given parameters',
     epilog='Author: Yuxuan Zhang (zhangyuxuan@ufl.edu)')
 parser.add_argument('-m', '--model', type=str, default="U_Net", help="Name of the model ({})".format(", ".join(MODELS.keys())))
@@ -29,7 +29,7 @@ parser.add_argument('-e', '--epochs', type=int, default=10, help="Number of epoc
 parser.add_argument('-b', '--batchSize', type=int, default=10, help="Batch size")
 parser.add_argument('-l', '--lossFunction', type=str, default="", help="Loss function (not implemented yet)")
 parser.add_argument('-r', '--learningRate', type=float, default=1e-6, help="Learning rate")
-parser.add_argument('-k', '--kFoldRatio', type=float, default=0.8, help="Split ratio of k-Fold corss validation")
+parser.add_argument('-k', '--kFoldRatio', type=float, default=0.8, help="Split ratio of k-Fold cross validation")
 parser.add_argument('-L', '--load', type=str, default=None, help="Path to load pre-trained model")
 parser.add_argument('-S', '--shuffle', type=float, default=-1, help="Flag to re-shuffle train/test lists")
 parser.add_help = True
