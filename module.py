@@ -34,8 +34,10 @@ class Module(torch.nn.Module):
                     return
                 batch = batch.to(self.device)
                 truth = truth.to(self.device)
+                # Transform truth
+                truth /= torch.stack((torch.mean(truth, dim=1),), dim=1)
                 # Forward pass
-                output = self(batch)
+                output, bri_map = self(batch)
                 # Record results
                 scores.append(score(output, truth))
                 # Compute loss
@@ -65,11 +67,12 @@ class Module(torch.nn.Module):
             for data, truth, name in prog:
                 data = torch.stack([data.to(self.device)], dim=0)
                 truth = torch.stack([truth.to(self.device)], dim=0)
-                output = self(data)
+                output, bri_map = self(data)
                 _, d, w, h = output.shape
-                result = output.view((d, w, h)).transpose(0, 2)
-                result[result < 0] = 0
-                result[result > 1] = 1
+                result = (output * bri_map).type(torch.float32)
+                result = result.view((d, w, h)).transpose(0, 2)
+                result -= torch.min(result)
+                result /= torch.max(result)
                 result = torch.round(result * 255).type(torch.uint8)
                 np.save(str(work_path / name), result.detach().cpu().numpy())
                 # Report progress on demand

@@ -43,7 +43,7 @@ class U_Node(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, sample: Sample_t, channels = [16, 32, 64, 128, 256, 512, 1024]):
+    def __init__(self, sample: Sample_t, channels = [128, 256, 512, 1024]):
         super().__init__()
         # Downscaler
         self.pool = nn.MaxPool2d((2, 2))
@@ -76,7 +76,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, sample: Tuple[Features_T, torch.Tensor], channels=[1000, 800, 600, 400, 300]):
+    def __init__(self, sample: Tuple[Features_T, torch.Tensor], channels=[800, 600, 300]):
         super().__init__()
         # Initialize samples
         s_in, s_out = sample
@@ -149,8 +149,12 @@ class Model(Module):
         print("Final result shape", s.shape)
 
     def forward(self, x):
-        out = self.encoder(x)
+        # x.shape = (Batches, Bands, Hight, Width)
+        bri_map = torch.stack((torch.mean(x, dim=1),), dim=1)
+        out = x / bri_map
+        # Learnable layers
+        out = self.encoder(out)
         out = self.decoder(out)
         out = self.scaler(out)
         # out = self.sigmoid(out)
-        return out
+        return out, self.scaler(bri_map)
