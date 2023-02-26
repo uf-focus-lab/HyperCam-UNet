@@ -33,15 +33,20 @@ class Module(torch.nn.Module):
                 if check_sigint():
                     return
                 batch = batch.to(self.device)
+                # Forward pass
+                output, bri_map = self(batch)
+                # Release batch memory
+                del batch
+                # Compute truth
                 truth = truth.to(self.device)
                 # Transform truth
                 truth /= torch.stack((torch.mean(truth, dim=1),), dim=1)
-                # Forward pass
-                output, bri_map = self(batch)
                 # Record results
                 scores.append(score(output, truth))
                 # Compute loss
                 loss = lossFunction(output, truth)
+                del output
+                del truth
                 # Clear previously computed gradient
                 optimizer.zero_grad()
                 # Backward Propagation
@@ -69,7 +74,7 @@ class Module(torch.nn.Module):
                 truth = torch.stack([truth.to(self.device)], dim=0)
                 output, bri_map = self(data)
                 _, d, w, h = output.shape
-                result = (output * bri_map).type(torch.float32)
+                result = (output.detach() * bri_map).type(torch.float32)
                 result = result.view((d, w, h)).transpose(0, 2)
                 result -= torch.min(result)
                 result /= torch.max(result)

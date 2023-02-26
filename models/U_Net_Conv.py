@@ -20,13 +20,20 @@ lossFunction = CustomLoss().to(DEVICE)
 Features_T = List[torch.Tensor]
 
 class U_Node(nn.Module):
-    def __init__(self, in_ch, out_ch):
+    def __init__(self, in_ch, out_ch, **kwargs):
         super().__init__()
+        # Set defaults
+        if 'kernel_size' not in kwargs:
+            kwargs['kernel_size'] = (3, 3)
+        if 'padding' not in kwargs:
+            kwargs['padding'] = (1, 1)
+        if 'stride' not in kwargs:
+            kwargs['stride'] = (1, 1)
         # self.norm1 = nn.BatchNorm2d(in_ch)
-        self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(in_ch, out_ch, **kwargs)
         self.relu1 = nn.ReLU()
         # self.norm2 = nn.BatchNorm2d(out_ch)
-        self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(out_ch, out_ch, **kwargs)
         self.relu2 = nn.ReLU()
         # Random init
         for layer in [self.conv1, self.conv2]:
@@ -45,30 +52,35 @@ class U_Node(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, channels: List[int], sample: torch.Tensor):
         super().__init__()
-        # Downscaler
-        self.pool = nn.MaxPool2d((2, 2))
-        # Initialize input sample
-        nodes = []
+        # Initialize layer array
+        layers = []
+        # Downscale mode
+        INTP_MODE = transforms.InterpolationMode.BICUBIC
         # Generate node list according to input sample and channels
         for c in channels:
-            sample = self.pool(sample)
             # Get dimensions out of the current sample
-            _, d, _, _ = sample.shape
-            # Create new node layer using the sample
-            layer = U_Node(d, c)
+            _, d, w, h = sample.shape
+            # Downscaler
+            # downscale = nn.MaxPool2d((2, 2))
+            downscale = transforms.Resize(
+                (int(w / 2), int(h / 2)),
+                interpolation=INTP_MODE
+            )
+            sample = downscale(sample)
+            # Create new node using the sample
+            node = U_Node(d, c, kernel_size=3, padding=1)
             # Iterate the sample
-            sample = layer(sample)
+            sample = node(sample)
             print("Encoder node shape", sample.shape)
-            # Append layer to node list
-            nodes.append(layer)
+            # Append node to list
+            layers.append(nn.ModuleList([downscale, node]))
         # Instantiate node list
-        self.nodes = nn.ModuleList(nodes)
-        del nodes
+        self.layers = nn.ModuleList(layers)
 
     def forward(self, x) -> Features_T:
         features = []
-        for node in self.nodes:
-            x = self.pool(x)
+        for downscale, node in self.layers:
+            x = downscale(x)
             x = node(x)
             features.append(x)
         return features
@@ -83,91 +95,81 @@ class Decoder(nn.Module):
         sample = sample[::-1]
         offset = len(sample) - self.layer_count
         s, features = sample[0], sample[offset:]
-        upconvs = []
-        scalers = []
-        dec_nodes = []
+        layers = []
         # Generate layers
         for i in range(len(channels)):
             _, d, _, _ = s.shape
             c = channels[i]
             # Upscale convolution
             upconv = nn.ConvTranspose2d(d, c, 2, 2)
-            upconvs.append(upconv)
             # Iterate input sample
-            s: torch.Tensor = upconv(s)
+            s = upconv(s)
             # Generate scaler
             _, _, w, h = s.shape
             scaler = transforms.Resize((w, h))
-            scalers.append(scaler)
             f = scaler(features[i])
             s = torch.cat([s, f], dim=1)
             _, d, _, _ = s.shape
             # Concat sample with features
-            decoder = U_Node(d, c)
-            dec_nodes.append(decoder)
-            s: torch.Tensor = decoder(s)
+            node = U_Node(d, c)
+            s: torch.Tensor = node(s)
             print("Decoder node shape", s.shape)
-
-        # self.upconvs = nn.ModuleList(upconvs)
-        # self.scalers = nn.ModuleList(scalers)
-        # self.dec_nodes = nn.ModuleList(dec_nodes)
-        self.layers = nn.ModuleList([
-            nn.ModuleList(upconvs[i], scalers[i], dec_nodes[i])
-            for i in range(self.layer_count)
-        ])
+            # Register current layer
+            layers.append(nn.ModuleList([upconv, scaler, node]))
+        # Register all layers
+        self.layers = nn.ModuleList(layers)
 
     def forward(self, features: Features_T):
         features = features[::-1]
         offset = len(features) - self.layer_count
         x, features = features[0], features[offset:]
-        for i in range(self.layer_count):
-            upconv, scaler, dec_node = self.layers[i]
+        i = 0
+        for upconv, scaler, node in self.layers:
             x = upconv(x)
-            f = scaler(features[i])
+            f = scaler(features[i]); features[i] = None
             x = torch.cat([x, f], dim=1)
-            x = dec_node(x)
+            del f
+            x = node(x)
+            i += 1
         return x
 
 class Model(Module):
     def __init__(self, device, sample: Sample_t):
         super(Model, self).__init__(device)
-        sample_in, sample_out = sample
-        print("model input shape", sample_in.shape)
+        s, sample_out = sample
+        print("model input shape", s.shape)
+        # Encoder
+        self.encoder = Encoder([32, 128, 512, 2048], s)
+        s = self.encoder(s)
+        # Decoder
+        self.decoder = Decoder([512, 128, 32], s)
+        s = self.decoder(s)
         # Resize the decoder output to match sample output
         _, _, w, h = sample_out.shape
         self.scaler = transforms.Resize((w, h))
-        s = self.scaler(sample_in)
-        # Encoder
-        self.encoder = Encoder([16, 32, 64, 128, 256], s)
-        s = self.encoder(s)
-        # Decoder
-        self.decoder = Decoder([256, 128, 64, 32, 16], s)
-        s = self.decoder(s)
-        # Report output shape
-        print("Decoder result shape", s.shape)
+        s = self.scaler(s)
         # FC Layers to Complete Spectrum Information
-        self.fc = nn.Sequential(
-            nn.Conv2d(16, 32, kernel_size=(1,1)),
-            nn.Conv2d(32, 64, kernel_size=(1,1)),
-            nn.Conv2d(64, 128, kernel_size=(1,1)),
-            nn.Conv2d(128, 256, kernel_size=(1,1)),
-            nn.Conv2d(256, sample_out.shape[2], kernel_size=(1,1)),
-        )
+        out_channels = int(sample_out.shape[1])
+        _, c, _, _ = s.shape
+        fc_layers = []
+        while c < out_channels:
+            _c = c
+            c = c * 2 if c * 2 <= out_channels else out_channels
+            fc_layers.append(nn.Conv2d(_c, c, kernel_size=1))
+        self.fc = nn.Sequential(*fc_layers)
         s = self.fc(s)
-        # self.sigmoid = nn.Sigmoid()
+        # Report output shape
         print("Final result shape", s.shape)
-        # Clear memory
-        s.detach()
-        sample_out.detach()
 
     def forward(self, x):
         # x.shape = (Batches, Bands, Hight, Width)
         bri_map = torch.stack((torch.mean(x, dim=1),), dim=1)
         out = x / bri_map
         # Learnable layers
-        out = self.scaler(out)
         out = self.encoder(out)
         out = self.decoder(out)
+        out = self.scaler(out)
+        out = self.fc(out)
         # out = self.sigmoid(out)
         bri_map = self.scaler(bri_map)
         bri_map.detach()

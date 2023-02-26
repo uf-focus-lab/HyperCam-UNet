@@ -13,10 +13,12 @@ import env
 import util
 # Model imports
 import models.U_Net as U_Net
+import models.U_Net_Conv as U_Net_Conv
 
 # Model map
 MODELS = {
-    "U_Net": U_Net
+    "U_Net": U_Net,
+    "U_Net_Conv": U_Net_Conv
 }
 
 # Arguments
@@ -24,7 +26,7 @@ parser = argparse.ArgumentParser(
     prog='CUDA_DEV[ICE]=* main.py [run-all | train | test]',
     description='Train and test ML models with given parameters',
     epilog='Author: Yuxuan Zhang (zhangyuxuan@ufl.edu)')
-parser.add_argument('-m', '--model', type=str, default="U_Net", help="Name of the model ({})".format(", ".join(MODELS.keys())))
+parser.add_argument('-m', '--model', type=str, required=True, help="Name of the model ({})".format(", ".join(MODELS.keys())))
 parser.add_argument('-e', '--epochs', type=int, default=10, help="Number of epochs")
 parser.add_argument('-b', '--batchSize', type=int, default=10, help="Batch size")
 parser.add_argument('-l', '--lossFunction', type=str, default="", help="Loss function (not implemented yet)")
