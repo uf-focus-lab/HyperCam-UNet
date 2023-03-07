@@ -1,18 +1,17 @@
 #!python
 # Python Packages
 import sys
-from os.path import exists, dirname, basename, abspath
-from tkinter.filedialog import askopenfilename
+from os import mkdir
+from os.path import exists
+from tkinter.messagebox import askyesnocancel
 # PIP Packages
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
-from PIL import Image
 # Custom Packages
 import env
 from check_util.param import LED_LIST, REF_BANDS
 # Components
-from check_util.data import RAW, REF, PRD, CAPTURE_DIR, CAPTURE_PREFIX
+from check_util.data import ID, RAW, REF, PRD, CAPTURE_DIR, CAPTURE_PREFIX
 from check_util.view import view
 from check_util.plot import plot
 
@@ -63,21 +62,24 @@ rasterize, update_cursor, render = view(
 	callback=mouseCallback
 )
 
-
-cv2.waitKey(0)
+print("press ENTER to save selection")
+k = cv2.waitKey(0)
 cv2.destroyAllWindows()
+cv2.waitKey(10)
 
 
+if k != 13:
+	print("key pressed", k)
+	print("exiting")
+	sys.exit(0)
+
+DIR = env.ensureDir(CAPTURE_DIR / ID)
 update_cursor(None)
 grid_img, band_number = rasterize()
-cv2.imwrite(str(CAPTURE_DIR / "grid.png"), grid_img)
-with open(CAPTURE_DIR / "grid_wavelength.txt", "w") as f:
-	f.write("{}\n".format(REF_BANDS[band_number]))
-
+cv2.imwrite(str(DIR / "grid.png"), grid_img)
+with open(DIR / "grid_wavelength.txt", "w") as f:
+	f.write("{}nm\n".format(REF_BANDS[band_number]))
 
 for id, pos in plot_list:
 	plot_img = render_plot(id, pos)
-	cv2.imwrite(str(CAPTURE_DIR / (id + ".png")), plot_img)
-
-
-cv2.waitKey(10)
+	cv2.imwrite(str(DIR / (id + ".png")), plot_img)

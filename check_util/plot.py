@@ -14,7 +14,7 @@ def line_initializer(ax: plt.Axes):
 def norm(arr: np.ndarray):
 	arr = arr.astype(np.float64)
 	arr = arr / np.stack((np.mean(arr, axis=2),), axis=2)
-	arr = arr / np.max(arr)
+	arr = arr / np.stack((np.max(arr, axis=2),), axis=2)
 	return arr
 
 
@@ -31,7 +31,7 @@ def plot(name, dataset, size=[4, 4], dpi=160):
 	ax.set_xlabel("Wavelength (nm)")
 	ax.set_ylabel("Intensity (relative)")
 	ax.set_xlim([390, 1000])
-	ax.set_ylim([0, 1])
+	ax.set_ylim([0, 1.1])
 	ax.legend()
 	# Initialize named window
 	def render(id, pos):

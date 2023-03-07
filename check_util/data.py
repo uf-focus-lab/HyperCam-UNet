@@ -28,7 +28,8 @@ CAPTURE_PREFIX = abspath(dirname(RESULT_PATH))	\
 	.replace('_results', '')					\
 	.replace('/', '_')
 
-CAPTURE_DIR = env.ensureDir(env.VAR_PATH / "capture" / CAPTURE_PREFIX)
+CAPTURE = env.ensureDir(env.VAR_PATH / "capture")
+CAPTURE_DIR = env.ensureDir(CAPTURE / CAPTURE_PREFIX)
 
 ID = basename(RESULT_PATH).replace(".npy", "")
 
