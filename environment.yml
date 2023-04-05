@@ -1,4 +1,4 @@
-name: SiTS_HC_ML
+name: SiTS
 
 channels:
   - conda-forge
@@ -6,12 +6,16 @@ channels:
   - pypi
 
 dependencies:
+  - python >= 3.10.6
   - matplotlib >= 3.6.2
+  - pillow >= 9.4.0
   - numpy >= 1.23.4
+  - scipy >= 1.10.1
+  # Progress bar
   - tqdm >= 4.64.1
+  # Python-OpenCV
   - opencv >= 4.6.0
+  # PyTorch and its extensions
   - pytorch >= 1.13.0
   - torchvision >= 0.14.0
   - torchaudio >= 0.13.0
-  - scipy >= 1.10.1
-  - pillow >= 9.4.0

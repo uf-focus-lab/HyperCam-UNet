@@ -8,14 +8,12 @@ from typing import Tuple
 import numpy as np
 import torch
 from torch.utils.data import Dataset as TorchDataset
-from env import DATA_PATH, VAR_PATH
+from env import RAW_DATA_PATH, REF_DATA_PATH, VAR_PATH
 
 TRAIN_SET_LIST_PATH = VAR_PATH / "train.list"
 TEST_SET_LIST_PATH = VAR_PATH / "test.list"
 
-
 Sample_t = Tuple[torch.Tensor, torch.Tensor]
-
 
 def getList(reload: bool = False, ratio: float = 0.1):
     # Generate new file list
@@ -29,21 +27,20 @@ def getList(reload: bool = False, ratio: float = 0.1):
 
 
 def listGen(ratio: float = 0.1):
-    fList = [basename(_.replace(".npy", "")) for _ in list(glob(str(DATA_PATH / "*.npy")))]
-    nameList = []
-    for f in fList:
-        if not f.endswith("_REF"):
-            continue
-        dpName = f.replace("_REF", "")
-        if dpName in fList:
-            nameList.append(dpName)
+    fList = map(basename, glob(str(RAW_DATA_PATH / "*.npy")))
+    nameList = [_.replace(".npy", "") for _ in fList]
+    # Check for existance of corresponding reference files
+    for name in nameList:
+        assert exists(REF_DATA_PATH / f"{name}.npy"), name
     # Randomly split the dataset into training set and test set
     shuffle(nameList)
     NUM_TEST = round(len(nameList) * ratio)
     TRAIN_LIST = nameList[NUM_TEST:]
     TEST_LIST = nameList[:NUM_TEST]
-    open(TRAIN_SET_LIST_PATH, 'w').write("\n".join(nameList[NUM_TEST:]))
-    open(TEST_SET_LIST_PATH, 'w').write("\n".join(nameList[:NUM_TEST]))
+    with open(TRAIN_SET_LIST_PATH, 'w') as f:
+        f.writelines(nameList[NUM_TEST:])
+    with open(TEST_SET_LIST_PATH, 'w') as f:
+        f.writelines(nameList[:NUM_TEST])
     return TRAIN_LIST, TEST_LIST
 
 
@@ -83,8 +80,8 @@ class DataSet(TorchDataset):
 
 
     def __getitem__(self, idx):
-        name = self.data_points[idx]
-        path = DATA_PATH / name
+        fileID = self.data_points[idx]
+        fileName = fileID + ".npy"
         # Load numpy array and transform into torch tensor
         def load(path):
             # Load data matrix
@@ -96,6 +93,6 @@ class DataSet(TorchDataset):
             data = data.transpose(0, 2).view((d, w, h))
             return data
         # Load corresponding label vector
-        data = load(str(path) + ".npy")
-        truth = load(str(path) + "_REF.npy")
-        return data, truth, name
+        data = load(str(RAW_DATA_PATH / fileName))
+        truth = load(str(REF_DATA_PATH / fileName))
+        return data, truth, fileID

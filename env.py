@@ -33,6 +33,8 @@ BASE = Path(dirname(realpath(__file__)))
 # Path constants
 VAR_PATH = BASE / "var"
 DATA_PATH = BASE / "data"
+RAW_DATA_PATH = DATA_PATH / "raw"
+REF_DATA_PATH = DATA_PATH / "ref"
 RUN_PATH = VAR_PATH / "run"
 
 def ensureDir(path) -> Path:

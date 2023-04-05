@@ -34,6 +34,7 @@ parser.add_argument('-r', '--learningRate', type=float, default=1e-6, help="Lear
 parser.add_argument('-k', '--kFoldRatio', type=float, default=0.8, help="Split ratio of k-Fold cross validation")
 parser.add_argument('-L', '--load', type=str, default=None, help="Path to load pre-trained model")
 parser.add_argument('-S', '--shuffle', type=float, default=-1, help="Flag to re-shuffle train/test lists")
+parser.add_argument('-s', '--seed', type=int, default=0, help="Flag to re-shuffle train/test lists")
 parser.add_help = True
 
 # Extract commands
@@ -53,13 +54,15 @@ try:
     elif (cmd == "test"):
         flag_run_test = True
     else:
-        print("Error: invalid command \"{}\"".format(CMD), file=sys.stderr)
-        raise Exception
+        assert False, f"Error: invalid command \"{CMD}\""
     # Parse additional args
     args = parser.parse_args(argList)
 except Exception as e:
     parser.print_help()
     sys.exit(1)
+
+# Specify random seed
+torch.manual_seed(args.seed)
 
 # Constants
 RUN_ID = util.uniq(env.RUN_PATH)
@@ -140,3 +143,4 @@ if flag_run_test:
     model.run_test(test_set, file=open(WORK_DIR / "test.log.txt", 'w'), work_path=WORK_DIR / "test_results")
 # Mark as successful run
 (WORK_DIR / "000_SUCCESS").touch()
+print("Run <{}> successfully completed".format(RUN_ID))

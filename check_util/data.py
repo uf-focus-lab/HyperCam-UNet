@@ -70,11 +70,11 @@ PRD = normalize(np.load(RESULT_PATH))
 
 RAW = normalize(removeSpots(
     PRD.shape,
-    np.load(str(env.DATA_PATH / (ID + ".npy"))),
+    np.load(str(env.RAW_DATA_PATH / f"{ID}.npy")),
     levels=[0.25, 0.25, 0.25, 0.25, 0.2, 0.25, 0.25, 0.9]
 ))
 
-REF = normalize(np.load(str(env.DATA_PATH / (ID + "_REF.npy"))))
+REF = normalize(np.load(str(env.REF_DATA_PATH / f"{ID}.npy")))
 
 TRAIN_LOG = {}
 
