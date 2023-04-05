@@ -1,3 +1,4 @@
+# Author: Yuxuan Zhang
 """Name | Bandwidth(nm) | Delta Bandwidth(nm)"""
 LED_LIST = [
 	("U-Violet", 395, 10),

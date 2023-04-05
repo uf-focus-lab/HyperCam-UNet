@@ -4,14 +4,18 @@ from inspect import isfunction
 # PIP Packages
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
-from PIL import Image
-# Custom Packages
-import env
-from check_util.param import LED_LIST, REF_BANDS
 
 
 alphabet = lambda: list(map(chr, range(65, 91)))
+
+
+def trim(img: np.ndarray, f = lambda a: np.min(a) >= 255)->np.ndarray:
+	i = 0; j = 1; k = 0; t = 1
+	while f(img[ i, :]): i += 1
+	while f(img[-j, :]): j += 1
+	while f(img[:,  k]): k += 1
+	while f(img[:, -t]): t += 1
+	return img[i:-j, k:-t]
 
 
 def rgb(gray: np.ndarray):
@@ -28,7 +32,7 @@ def diff(a: np.ndarray, b: np.ndarray):
 
 def text(
 		img, text, pos, color=(255, 255, 255),
-		font=cv2.FONT_HERSHEY_DUPLEX,
+		font=cv2.FONT_HERSHEY_TRIPLEX,
 		scale=0.5, w=1
 	):
 	return cv2.putText(
@@ -88,13 +92,14 @@ def view(name, imGrid, margin=16, cursorNames=alphabet(), callback=None):
 		if i is not None: band_number = i
 		cv2.imshow(name, rasterize()[0])
 	# Updates the cursor object list
-	def update_cursor(pos, confirm=False):
+	def update_cursor(pos, confirm=False, hasPadding=True):
 		nonlocal cursors, preview
 		id = None
 		if pos is not None:
 			x, y = pos
-			x = x % (w + margin)
-			y = y % (h + margin)
+			if hasPadding:
+				x = x % (w + margin)
+				y = y % (h + margin)
 			pos = x, y
 			if (x < w and y < h):
 				preview = (x, y)

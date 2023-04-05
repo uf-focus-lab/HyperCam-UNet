@@ -1,6 +1,8 @@
 #!python
 # Python Packages
 import sys
+from argparse import ArgumentParser
+from pathlib import Path
 from os.path import exists, dirname, basename, abspath
 from tkinter.filedialog import askopenfilename
 # PIP Packages
@@ -9,6 +11,13 @@ from PIL import Image
 # Custom Packages
 import env
 
+parser = ArgumentParser()
+parser.add_argument('file')
+parser.add_argument('-P', '--points', default=None, required=False)
+parser.add_argument('-B', '--band'  , default=None , required=False, type=int)
+ARGS = parser.parse_args()
+
+
 def isNpMtx(f): return type(f) == str and f.endswith(".npy") and exists(f)
 
 
@@ -16,17 +25,19 @@ def askForMtx(): return askopenfilename(
 	defaultextension=".npy", initialdir=str(env.RUN_PATH))
 
 
-RESULT_PATH = sys.argv[-1] if isNpMtx(sys.argv[-1]) else askForMtx()
+RESULT_PATH = ARGS.file if isNpMtx(ARGS.file) else askForMtx()
 if RESULT_PATH is None:
 	sys.exit(0)
 if not exists(RESULT_PATH):
 	print("File \"{}\" does not exist".format(RESULT_PATH), file=sys.stderr)
 	sys.exit(1)
 
-CAPTURE_PREFIX = abspath(dirname(RESULT_PATH))	\
+RUN_ID, CATEGORY = abspath(dirname(RESULT_PATH))	\
 	.replace(abspath(env.RUN_PATH) + '/', '')	\
 	.replace('_results', '')					\
-	.replace('/', '_')
+	.split('/')
+
+CAPTURE_PREFIX = '_'.join([RUN_ID, CATEGORY])
 
 CAPTURE = env.ensureDir(env.VAR_PATH / "capture")
 CAPTURE_DIR = env.ensureDir(CAPTURE / CAPTURE_PREFIX)
@@ -64,3 +75,19 @@ RAW = normalize(removeSpots(
 ))
 
 REF = normalize(np.load(str(env.DATA_PATH / (ID + "_REF.npy"))))
+
+TRAIN_LOG = {}
+
+with open(Path(dirname(RESULT_PATH)) / ".." / "train.log.txt", "r") as log:
+    while True:
+        line = log.readline().strip()
+        if line == '': break
+        for seg in line.split('|'):
+            key, value = seg.strip().split(' ')
+            if key == "Epoch": value = int(value)
+            else: value = float(value)
+            if key in TRAIN_LOG: TRAIN_LOG[key].append(value)
+            else: TRAIN_LOG[key] = [value]
+
+for key in TRAIN_LOG:
+    TRAIN_LOG[key] = np.array(TRAIN_LOG[key])
