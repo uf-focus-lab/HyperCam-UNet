@@ -34,7 +34,7 @@ class Module(torch.nn.Module):
                     return
                 batch = batch.to(self.device)
                 # Forward pass
-                output, bri_map = self(batch)
+                output = self(batch)
                 # Release batch memory
                 del batch
                 # Compute truth

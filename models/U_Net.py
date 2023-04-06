@@ -112,7 +112,7 @@ class Decoder(nn.Module):
         # self.scalers = nn.ModuleList(scalers)
         # self.dec_nodes = nn.ModuleList(dec_nodes)
         self.layers = nn.ModuleList([
-            nn.ModuleList(upconvs[i], scalers[i], dec_nodes[i])
+            nn.ModuleList([upconvs[i], scalers[i], dec_nodes[i]])
             for i in range(self.layer_count)
         ])
 
@@ -131,44 +131,26 @@ class Decoder(nn.Module):
 class Model(Module):
     def __init__(self, device, sample: Sample_t):
         super(Model, self).__init__(device)
-        sample_in, sample_out = sample
-        print("model input shape", sample_in.shape)
-        # Resize the decoder output to match sample output
-        _, _, w, h = sample_out.shape
-        self.scaler = transforms.Resize((w, h))
-        s = self.scaler(sample_in)
+        s, sample_out = sample
+        print("model input shape", s.shape)
         # Encoder
-        self.encoder = Encoder([16, 32, 64, 128, 256], s)
+        self.encoder = Encoder([32, 128, 512, 1024], s)
         s = self.encoder(s)
         # Decoder
-        self.decoder = Decoder([256, 128, 64, 32, 16], s)
+        _, d, _, _ = sample_out.shape
+        self.decoder = Decoder([512, 400, d], s)
         s = self.decoder(s)
         # Report output shape
         print("Decoder result shape", s.shape)
-        # FC Layers to Complete Spectrum Information
-        self.fc = nn.Sequential(
-            nn.Conv2d(16, 32, kernel_size=(1,1)),
-            nn.Conv2d(32, 64, kernel_size=(1,1)),
-            nn.Conv2d(64, 128, kernel_size=(1,1)),
-            nn.Conv2d(128, 256, kernel_size=(1,1)),
-            nn.Conv2d(256, sample_out.shape[2], kernel_size=(1,1)),
-        )
-        s = self.fc(s)
-        # self.sigmoid = nn.Sigmoid()
+        # Resize the decoder output to match sample output
+        _, _, h, w = sample_out.shape
+        self.scaler = transforms.Resize((h, w))
+        s = self.scaler(s)
         print("Final result shape", s.shape)
-        # Clear memory
-        s.detach()
-        sample_out.detach()
 
-    def forward(self, x):
+    def forward(self, x, train=False):
         # x.shape = (Batches, Bands, Hight, Width)
-        bri_map = torch.stack((torch.mean(x, dim=1),), dim=1)
-        out = x / bri_map
-        # Learnable layers
-        out = self.scaler(out)
-        out = self.encoder(out)
+        out = self.encoder(x)
         out = self.decoder(out)
-        # out = self.sigmoid(out)
-        bri_map = self.scaler(bri_map)
-        bri_map.detach()
-        return out, bri_map
+        out = self.scaler(out)
+        return out

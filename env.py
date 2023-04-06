@@ -13,13 +13,23 @@ def getDevice(force_cpu = False):
     if force_cpu:
         return 'cpu'
     if torch.cuda.is_available():
+        dev_number = None
         # Nvidia Cuda
         if "CUDA_DEVICE" in environ:
-            return "cuda:{}".format(environ["CUDA_DEVICE"])
+            dev_number = environ["CUDA_DEVICE"]
         elif "CUDA_DEV" in environ:
-            return "cuda:{}".format(environ["CUDA_DEV"])
+            dev_number = environ["CUDA_DEV"]
         else:
-            return 'cuda'
+            dev_count = torch.cuda.device_count()
+            if dev_count == 1:
+                return "cuda"
+            # List available devices
+            for i in range(dev_count):
+                print(f"{i:2d} |", torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))
+            # Prompt for selection
+            dev_number = input("Select a cuda device from above: ")
+        # Return string descriptor
+        return f"cuda:{dev_number}" if dev_number is not None else "cuda"
     if torch.backends.mps.is_available():
         # MacOS metal
         return 'mps'

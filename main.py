@@ -14,6 +14,8 @@ import util
 # Model imports
 import models.U_Net as U_Net
 import models.U_Net_Conv as U_Net_Conv
+# Augmentations
+import augment
 
 # Model map
 MODELS = {
@@ -35,29 +37,28 @@ parser.add_argument('-k', '--kFoldRatio', type=float, default=0.8, help="Split r
 parser.add_argument('-L', '--load', type=str, default=None, help="Path to load pre-trained model")
 parser.add_argument('-S', '--shuffle', type=float, default=-1, help="Flag to re-shuffle train/test lists")
 parser.add_argument('-s', '--seed', type=int, default=0, help="Flag to re-shuffle train/test lists")
+parser.add_argument('command', nargs='*', type=str)
 parser.add_help = True
 
 # Extract commands
 flag_run_train = False
 flag_run_test = False
+# Parse args
 try:
-    CMD = sys.argv[1] if len(sys.argv) > 1 else None
-    cmd = CMD.lower() if type(CMD) == str else None
-    argList = sys.argv[2:]
-    if (cmd == "run-all" or CMD is None or CMD.startswith('-')):
+    args = parser.parse_args()
+    # Check for command
+    cmd = args.command[0] if len(args.command) else 'run-all'
+    # Parse command into flags
+    if cmd == "run-all":
         flag_run_train = True
         flag_run_test = True
-        if (CMD is not None and CMD.startswith('-')):
-            argList.insert(0, CMD)
-    elif (cmd == "train"):
+    elif cmd == "train":
         flag_run_train = True
-    elif (cmd == "test"):
+    elif cmd == "test":
         flag_run_test = True
     else:
-        assert False, f"Error: invalid command \"{CMD}\""
-    # Parse additional args
-    args = parser.parse_args(argList)
-except Exception as e:
+        assert False, f"Error: invalid command \"{cmd}\""
+except:
     parser.print_help()
     sys.exit(1)
 
@@ -96,7 +97,7 @@ LR = args.learningRate
 # Load datasets
 S = args.shuffle
 flag_reload, shuffle_ratio = (True, S) if S > 0 and S < 1.0 else (False, 0.1)
-train_set, test_set = DataSet.load(flag_reload, shuffle_ratio)
+train_set, test_set = DataSet.load(flag_reload, shuffle_ratio, augment.affine)
 
 # Create Model
 model: Module = Model(env.DEVICE, train_set.sample())

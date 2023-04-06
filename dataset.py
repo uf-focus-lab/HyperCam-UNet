@@ -38,9 +38,9 @@ def listGen(ratio: float = 0.1):
     TRAIN_LIST = nameList[NUM_TEST:]
     TEST_LIST = nameList[:NUM_TEST]
     with open(TRAIN_SET_LIST_PATH, 'w') as f:
-        f.writelines(nameList[NUM_TEST:])
+        f.write('\n'.join(nameList[NUM_TEST:]))
     with open(TEST_SET_LIST_PATH, 'w') as f:
-        f.writelines(nameList[:NUM_TEST])
+        f.write('\n'.join(nameList[:NUM_TEST]))
     return TRAIN_LIST, TEST_LIST
 
 
@@ -49,9 +49,9 @@ class DataSet(TorchDataset):
 
 
     @classmethod
-    def load(cls, reload: bool = False, ratio: float = 0.1):
+    def load(cls, reload: bool = False, ratio: float = 0.1, augment=None):
         train_list, test_list = getList(reload, ratio)
-        return cls(train_list), cls(test_list)
+        return cls(train_list, augment=augment), cls(test_list, augment=None)
 
 
     def sample(self):
@@ -65,7 +65,10 @@ class DataSet(TorchDataset):
         return data, truth
 
 
-    def __init__(self, idList):
+    augment=None
+
+
+    def __init__(self, idList, augment=None):
         """
         load dataset from a given data set collection
         """
@@ -73,6 +76,8 @@ class DataSet(TorchDataset):
             print("No data given", file=sys.stderr)
             raise Exception
         self.data_points = idList
+        # Add augmentation
+        self.augment = augment
 
 
     def __len__(self):
@@ -95,4 +100,7 @@ class DataSet(TorchDataset):
         # Load corresponding label vector
         data = load(str(RAW_DATA_PATH / fileName))
         truth = load(str(REF_DATA_PATH / fileName))
+        # Augment data if requested
+        if self.augment is not None:
+            data, truth = self.augment(data, truth)
         return data, truth, fileID
