@@ -1,0 +1,4 @@
+[submodule "cvtb"]
+	path = cvtb
+	url = git@github.com:zhangyx-lab/PyCV-Toolbox.git
+	branch = master
