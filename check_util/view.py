@@ -35,10 +35,8 @@ def text(
 		font=cv2.FONT_HERSHEY_TRIPLEX,
 		scale=0.5, w=1
 	):
-	return cv2.putText(
-		img.astype(np.uint8), text, pos, font,
-		scale, color, w, cv2.LINE_AA
-	)
+	img = np.ascontiguousarray(img, dtype=np.uint8)
+	return cv2.putText(img, text, pos, font, scale, color, w, cv2.LINE_AA)
 
 
 def marker(img, pos, color, style=cv2.MARKER_CROSS, size=12, weight=1):

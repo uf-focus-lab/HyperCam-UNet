@@ -3,6 +3,7 @@
 import sys
 import argparse
 from os.path import exists
+import random
 # PIP Packages
 import torch
 import numpy as np
@@ -37,6 +38,7 @@ parser.add_argument('-k', '--kFoldRatio', type=float, default=0.8, help="Split r
 parser.add_argument('-L', '--load', type=str, default=None, help="Path to load pre-trained model")
 parser.add_argument('-S', '--shuffle', type=float, default=-1, help="Flag to re-shuffle train/test lists")
 parser.add_argument('-s', '--seed', type=int, default=0, help="Flag to re-shuffle train/test lists")
+parser.add_argument('-a', '--augment', type=str, default=None, help="Name of the augmentation", required=False)
 parser.add_argument('command', nargs='*', type=str)
 parser.add_help = True
 
@@ -63,6 +65,7 @@ except:
     sys.exit(1)
 
 # Specify random seed
+random.seed(args.seed)
 torch.manual_seed(args.seed)
 
 # Constants
@@ -94,10 +97,15 @@ LOSS_FN = args.lossFunction
 kFoldRatio = args.kFoldRatio
 LR = args.learningRate
 
+# Match augmentation method
+augment_method = None
+if args.augment == 'affine':
+    print("**** AFFINE ****")
+    augment_method = augment.affine
 # Load datasets
 S = args.shuffle
 flag_reload, shuffle_ratio = (True, S) if S > 0 and S < 1.0 else (False, 0.1)
-train_set, test_set = DataSet.load(flag_reload, shuffle_ratio, augment.affine)
+train_set, test_set = DataSet.load(flag_reload, shuffle_ratio, augment_method)
 
 # Create Model
 model: Module = Model(env.DEVICE, train_set.sample())

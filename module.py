@@ -39,8 +39,6 @@ class Module(torch.nn.Module):
                 del batch
                 # Compute truth
                 truth = truth.to(self.device)
-                # Transform truth
-                truth /= torch.stack((torch.mean(truth, dim=1),), dim=1)
                 # Record results
                 scores.append(score(output, truth))
                 # Compute loss
@@ -72,14 +70,14 @@ class Module(torch.nn.Module):
             for data, truth, name in prog:
                 data = torch.stack([data.to(self.device)], dim=0)
                 truth = torch.stack([truth.to(self.device)], dim=0)
-                output, bri_map = self(data)
+                output = self(data)
                 _, d, w, h = output.shape
-                result = (output.detach() * bri_map).type(torch.float32)
+                result = output.detach()
                 result = result.view((d, w, h)).transpose(0, 2)
-                result -= torch.min(result)
-                result /= torch.max(result)
+                result[result < 0] = 0
+                result[result > 1] = 1
                 result = torch.round(result * 255).type(torch.uint8)
-                np.save(str(work_path / name), result.detach().cpu().numpy())
+                np.save(str(work_path / name), result.cpu().numpy())
                 # Report progress on demand
                 if (report):
                     msg = "Testing {} -> AvgErr {:.6f} | StDev {:.6f}".format(name, *score(output, truth))

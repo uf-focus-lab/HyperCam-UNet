@@ -7,6 +7,7 @@ from os.path import exists, dirname, basename, abspath
 from tkinter.filedialog import askopenfilename
 # PIP Packages
 import numpy as np
+import cv2
 from PIL import Image
 # Custom Packages
 import env
@@ -44,14 +45,18 @@ CAPTURE_DIR = env.ensureDir(CAPTURE / CAPTURE_PREFIX)
 
 ID = basename(RESULT_PATH).replace(".npy", "")
 
+def resize(img, shape):
+     h, w, d = shape
+     return cv2.resize(img, (w, h))
+
 def removeSpots(shape, img: np.ndarray, levels: list = []):
     h, w, d = shape
     n = len(levels)
     layers = [None for _ in levels]
     bri = np.average(img, axis=(0, 1))
-    min_img = np.min(img.astype(np.float64) / bri, axis=2) / 255
+    min_img = np.min(img.astype(np.float64) / bri, axis=2)
     for i, L in zip(range(n), levels):
-        layer = img[:, :, i].astype(np.float64) / 255
+        layer = img[:, :, i].astype(np.float64)
         mask = layer > L
         layer = layer * mask + min_img * bri[i] * (1 - mask)
         layer = np.round(255 * layer / L).astype(np.uint8)
@@ -61,18 +66,22 @@ def removeSpots(shape, img: np.ndarray, levels: list = []):
 
 
 def normalize(img: np.ndarray)->np.ndarray[np.uint8]:
-    if img.dtype != np.uint8:
-        img = img.astype(np.float64)
-        return (img * 255 / np.max(img)).astype(np.uint8)
+    print(img.shape, [f(img) for f in (np.min, np.max)], img.dtype)
+    if issubclass(img.dtype.type, np.floating):
+        return np.rint(img * 255).astype(np.uint8)
+    if img.dtype == np.uint16:
+         return (img >> 8).astype(np.uint8)
+    assert img.dtype == np.uint8, img.dtype
     return img
 
 PRD = normalize(np.load(RESULT_PATH))
 
-RAW = normalize(removeSpots(
-    PRD.shape,
-    np.load(str(env.RAW_DATA_PATH / f"{ID}.npy")),
-    levels=[0.25, 0.25, 0.25, 0.25, 0.2, 0.25, 0.25, 0.9]
-))
+# RAW = normalize(removeSpots(
+#     PRD.shape,
+#     np.load(str(env.RAW_DATA_PATH / f"{ID}.npy")),
+#     levels=[0.25, 0.25, 0.25, 0.25, 0.2, 0.25, 0.25, 0.9]
+# ))
+RAW = resize(normalize(np.load(str(env.RAW_DATA_PATH / f"{ID}.npy"))), PRD.shape)
 
 REF = normalize(np.load(str(env.REF_DATA_PATH / f"{ID}.npy")))
 

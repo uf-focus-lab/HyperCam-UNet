@@ -13,6 +13,8 @@ from check_util.data import ARGS, ID, RAW, REF, PRD, CAPTURE, RUN_ID, CAPTURE_DI
 from check_util.view import view, trim, text
 from check_util.plot import plot
 
+
+LED_BANDS = [led.bandwidth for led in LED_LIST]
 # Plot the training process and save to file
 fig = plt.figure(figsize=(9, 4), dpi=160)
 ax1 = fig.gca(); ax2 = ax1.twinx()
@@ -46,7 +48,10 @@ h, w, d = PRD.shape
 # Interpolate spectral raw
 gaussian = None
 def raw(i):
-	return np.stack([RAW[:, :, i] for i in [1, 2, 6]], axis=2)
+	# wavelength = REF_BANDS[i]
+	# x = np.array(LED_BANDS).copy().astype(np.float32)
+	# weights = np.exp(-np.square((x - wavelength) / 5))
+	return RAW[:, :, [1, 2, 6]]
 # Generate differential image
 def DIF(i):
 	X, Y = REF[:, :, i], PRD[:, :, i]
@@ -67,13 +72,12 @@ def mouseCallback(e, x, y, flags, param):
 		pass
 
 
-LED_BANDS = [b for _, b, _ in LED_LIST]
 render_plot = plot(
 	"Pixel Spectrum",
 	[
 		(REF, ("Ground Truth", REF_BANDS, 'r-')),
-		# (PRD, ("Prediction"  , REF_BANDS, 'b-')),
-		# (RAW, ("Raw Input"   , LED_BANDS, 'cx')),
+		(PRD, ("Prediction"  , REF_BANDS, 'b-')),
+		(RAW, ("Raw Input"   , LED_BANDS, 'cx')),
 	],
 	size=[3, 5]
 )
