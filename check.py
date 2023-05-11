@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 # Custom Packages
-import env
+import util.env as env
 from check_util.param import LED_LIST, REF_BANDS
 # Components
 from check_util.data import ARGS, ID, RAW, REF, PRD, CAPTURE, RUN_ID, CAPTURE_DIR, CAPTURE_PREFIX, TRAIN_LOG

@@ -13,6 +13,8 @@ dependencies:
   - scipy >= 1.10.1
   # Progress bar
   - tqdm >= 4.64.1
+  # Terminal color output
+  - termcolor >= 1.1.0
   # Python-OpenCV
   - opencv >= 4.6.0
   # PyTorch and its extensions

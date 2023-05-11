@@ -1,155 +1,87 @@
-#!python3
-# Python packages
-import sys
-import argparse
-from os.path import exists
+#!python
+# ---------------------------------------------------------
+# Yuxuan Zhang
+# Dept. of Electrical and Computer Engineering
+# University of Florida
+# ---------------------------------------------------------
+# Main entry for running train and test on specified model.
+# Run this script with no parameters to see help message.
+# ---------------------------------------------------------
+# Python Modules
 import random
-# PIP Packages
+
+# PIP Modules
 import torch
-import numpy as np
-# User includes
-from dataset import DataSet
-from module import Module
-import env
-import util
+from torch.utils.data import DataLoader
+
+# User Modules
+from util.dataset import DataSet
+from lib import Run, Module
+from util.dataset import DataSet
+from util.device import DEVICE
+from util.optimizer import optimizer
+import util.args as args
+
 # Model imports
-import models.U_Net as U_Net
-import models.U_Net_Conv as U_Net_Conv
-# Augmentations
-import augment
+from models import MODELS
 
-# Model map
-MODELS = {
-    "U_Net": U_Net,
-    "U_Net_Conv": U_Net_Conv
-}
-
-# Arguments
-parser = argparse.ArgumentParser(
-    prog='CUDA_DEV[ICE]=* main.py [run-all | train | test]',
-    description='Train and test ML models with given parameters',
-    epilog='Author: Yuxuan Zhang (zhangyuxuan@ufl.edu)')
-parser.add_argument('-m', '--model', type=str, required=True, help="Name of the model ({})".format(", ".join(MODELS.keys())))
-parser.add_argument('-e', '--epochs', type=int, default=10, help="Number of epochs")
-parser.add_argument('-b', '--batchSize', type=int, default=10, help="Batch size")
-parser.add_argument('-l', '--lossFunction', type=str, default="", help="Loss function (not implemented yet)")
-parser.add_argument('-r', '--learningRate', type=float, default=1e-6, help="Learning rate")
-parser.add_argument('-k', '--kFoldRatio', type=float, default=0.8, help="Split ratio of k-Fold cross validation")
-parser.add_argument('-L', '--load', type=str, default=None, help="Path to load pre-trained model")
-parser.add_argument('-S', '--shuffle', type=float, default=-1, help="Flag to re-shuffle train/test lists")
-parser.add_argument('-s', '--seed', type=int, default=0, help="Flag to re-shuffle train/test lists")
-parser.add_argument('-a', '--augment', type=str, default=None, help="Name of the augmentation", required=False)
-parser.add_argument('command', nargs='*', type=str)
-parser.add_help = True
-
-# Extract commands
-flag_run_train = False
-flag_run_test = False
-# Parse args
-try:
-    args = parser.parse_args()
-    # Check for command
-    cmd = args.command[0] if len(args.command) else 'run-all'
-    # Parse command into flags
-    if cmd == "run-all":
-        flag_run_train = True
-        flag_run_test = True
-    elif cmd == "train":
-        flag_run_train = True
-    elif cmd == "test":
-        flag_run_test = True
-    else:
-        assert False, f"Error: invalid command \"{cmd}\""
-except:
-    parser.print_help()
-    sys.exit(1)
-
-# Specify random seed
-random.seed(args.seed)
-torch.manual_seed(args.seed)
-
-# Constants
-RUN_ID = util.uniq(env.RUN_PATH)
-WORK_DIR = env.RUN_PATH / RUN_ID
-print("Run ID:", RUN_ID)
-
-# Initialize run log
-RUN_LOG_PATH = env.VAR_PATH / "run.log"
-if not exists(RUN_LOG_PATH):
-    RUN_LOG_PATH.touch()
-with open(RUN_LOG_PATH, "a") as f:
-    print("{} | {}".format(RUN_ID, " ".join(sys.argv)), file=f)
-
-# Initialize model and loss function
-Model = MODELS[args.model].Model
-lossFunction = MODELS[args.model].lossFunction
-
-# Initialize Paths
-env.ensureDir(WORK_DIR)
-with open(WORK_DIR / "log.txt", 'w') as f:
-    print("{} | {}".format(RUN_ID, " ".join(sys.argv[3:])), file=f)
-
-# Initialize parameters
-kFoldRatio = args.kFoldRatio
-NUM_EPOCHS = args.epochs
-BATCH_SIZE = args.batchSize
-LOSS_FN = args.lossFunction
-kFoldRatio = args.kFoldRatio
-LR = args.learningRate
-
-# Match augmentation method
-augment_method = None
-if args.augment == 'affine':
-    print("**** AFFINE ****")
-    augment_method = augment.affine
-# Load datasets
-S = args.shuffle
-flag_reload, shuffle_ratio = (True, S) if S > 0 and S < 1.0 else (False, 0.1)
-train_set, test_set = DataSet.load(flag_reload, shuffle_ratio, augment_method)
-
-# Create Model
-model: Module = Model(env.DEVICE, train_set.sample())
-model.to(env.DEVICE)
-
-# Initialize optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=5e-4)
-
-# Record all free parameters
-with open(WORK_DIR / "parameters.txt", "w") as f:
-    print("Device        =", env.DEVICE, file=f)
-    print("Num Epochs    =", NUM_EPOCHS, file=f)
-    print("Batch Size    =", BATCH_SIZE, file=f)
-    print("Loss Fn       =", str(LOSS_FN), file=f)
-    print("Learning Rate =", LR, file=f)
-    print(file=f)
-
-
-if args.load is not None:
-    load_path = env.RUN_PATH / args.load
-    print(">> Loading model from ", load_path)
-    model.load_state_dict(torch.load(str(load_path / "model.pkl")))
-    model.eval()
-    print(">> Loading optimizer from ", load_path)
-    optimizer.load_state_dict(torch.load(str(load_path / "optim.pkl")))
-
-# Run train on demand
-if flag_run_train:
-    print("========== Model Definition ==========")
-    print(model)
-    print(model, file=open(WORK_DIR / "Model.txt", "w"))
-    print("========== Training Model ==========")
-    train_loader = torch.utils.data.DataLoader(
-        train_set, batch_size=BATCH_SIZE)
-    model.run_train(train_loader, optimizer, lossFunction, NUM_EPOCHS, kFoldRatio, file=open(WORK_DIR / "train.log.txt", 'w'), work_path=WORK_DIR)
-    # Save model to run dir
-    torch.save(model.state_dict(), str(WORK_DIR / "model.pkl"))
-    torch.save(optimizer.state_dict(), str(WORK_DIR / "optim.pkl"))
-    print("========== Running Test on TRAIN SET ==========")
-    model.run_test(train_set, file=open(WORK_DIR / "test.log.txt", 'w'), work_path=WORK_DIR / "train_results")
-
-if flag_run_test:
-    print("========== Running Test on TEST SET ==========")
-    model.run_test(test_set, file=open(WORK_DIR / "test.log.txt", 'w'), work_path=WORK_DIR / "test_results")
-# Mark as successful run
-(WORK_DIR / "000_SUCCESS").touch()
-print("Run <{}> successfully completed".format(RUN_ID))
+# Initialize datasets
+train_set, test_set = DataSet.load()
+# Create context
+with Run() as run:
+    # Initialize random seed (IMPORTANT!!!)
+    random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    # Initialize model
+    run.log(banner="Model Initialization")
+    Model = MODELS[args.model]
+    model: Module = Model(run, DEVICE, train_set.sample(device=DEVICE))
+    model.to(DEVICE)
+    # Model too large to be displayed
+    run.log(model, file="model.txt", visible=False)
+    # Record all free parameters
+    run.log(banner="Free Parameters")
+    run.log("Device        =", DEVICE)
+    run.log("Training Mode =", args.train_mode)
+    run.log("Num Epochs    =", args.epochs)
+    run.log("Batch Size    =", args.batch_size)
+    run.log("Random Seed   =", args.seed)
+    # Check for previous model to load
+    if args.load is not None:
+        run.log(banner="Loading Model States")
+        model.load(run, **args.load)
+    # ================================= TRAIN =================================
+    if args.RUN_TRAIN:
+        # Initialize optimizer
+        optim = optimizer(torch.optim.Adam)(
+            model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
+        )
+        run.log(optim, file="optim.txt", visible=False)
+        if args.load:
+            run.log(banner="Loading Optimizer States")
+            optim.load(run, **args.load)
+        with run.context(
+            "train", optimizer=optim, epochs=args.epochs, train_mode=args.train_mode
+        ) as ctx:
+            train_loader = DataLoader(train_set, batch_size=args.batch_size)
+            ctx.log(banner="Training Model")
+            model.run(ctx, train_loader)
+        # Save model prediction on training set
+        run.log(banner="Saving States")
+        model.save(run)
+        optim.save(run)
+        # Run test on training set
+        with run.context("train") as ctx:
+            ctx.log(banner="Running Prediction on TRAINING SET")
+            model.run(ctx, train_set)
+    # ================================== TEST =================================
+    if args.RUN_TEST:
+        with run.context("test") as ctx:
+            ctx.log(banner="Running Prediction on TEST SET")
+            model.run(ctx, test_set)
+    # Visualize
+    # if "visualize" in args.command:
+    #     with torch.no_grad():
+    #         tools.vis_pred.ui(run, model, train_set, test_set)
+    # Congratulations!
+    run.log(f"RUN<{run.id}> completed!", banner="Success")
