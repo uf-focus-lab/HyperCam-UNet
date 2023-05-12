@@ -1,4 +1,4 @@
-from torch import Tensor, from_numpy, flip, cat
+from torch import Tensor, from_numpy, flip, cat, mean
 import torchvision.transforms.functional as f
 from random import random
 import numpy as np
@@ -12,10 +12,10 @@ def randfloat(l: float, r: float) -> float:
 
 
 def affine(
-    *samples: Tensor, trans_r=[-0.25, 0.25], scale_r=[0.8, 2.0], shear=[-15, 15]
+    *samples: Tensor, rot_r=[-30, 30], trans_r=[-0.2, 0.2], scale_r=[0.8, 1.6], shear=[-5, 5]
 ):
     # -180 ~ +180 degrees
-    angle = randfloat(-180, 180)
+    angle = randfloat(*rot_r)
     # Depending on size of the tensor
     tH, tW = [randfloat(*trans_r) for _ in range(2)]
 
@@ -31,22 +31,23 @@ def affine(
     # mapping callback
     def apply(sample: Tensor):
         trans = translate(sample)
-        b, c, h, w = sample.shape
+        fill = [float(_) for _ in mean(sample, dim=[0, 2, 3]).detach().cpu()]
+        # b, c, h, w = sample.shape
         # Pad the sample with the mirror of itself to avoid black borders
-        flip_h = flip(sample, [3])  # Flip along the width dimension
+        # flip_h = flip(sample, [3])  # Flip along the width dimension
         # Pad along width
-        sample = cat((flip_h, sample, flip_h), dim=3)
-        flip_v = flip(sample, [2])  # Flip along the height dimension
+        # sample = cat((flip_h, sample, flip_h), dim=3)
+        # flip_v = flip(sample, [2])  # Flip along the height dimension
         # Pad along height
-        sample = cat((flip_v, sample, flip_v), dim=2)
+        # sample = cat((flip_v, sample, flip_v), dim=2)
         # Apply affine transformation
         sample = (
             f.affine(
-                sample, angle=angle, translate=trans, scale=scale, shear=shear, fill=0.5
+                sample, angle=angle, translate=trans, scale=scale, shear=shear, fill=fill
             )
         )
         # Crop the sample to original size
-        sample = sample[:, :, h : 2 * h, w : 2 * w]
+        # sample = sample[:, :, h : 2 * h, w : 2 * w].contiguous()
         return sample
 
     # perform transform on all given samples

@@ -103,10 +103,9 @@ class Module(torch.nn.Module):
         path = try_paths(dir / f"{full_name}.pkl", dir / f"{name}.pkl")
         if path is not None:
             try:
-                self.update(path)
-                ctx.log(f"Model state of {full_name} loaded from {path}")
-            except:
-                ctx.log("[WARNING] Failed to load", full_name, "from", relative(dir))
+                self.update(ctx, path, full_name)
+            except Exception as e:
+                ctx.log("[WARNING] Failed to load", full_name, "from", relative(dir), ':', e)
         else:
             # Try to load from anything that was saved by the module
             for path in dir.glob(f"{self.__class__.__name__}@*.pkl"):
@@ -167,7 +166,7 @@ class Module(torch.nn.Module):
             ncols=80,
             bar_format="{l_bar} |{bar}| {n_fmt}/{total_fmt} {rate_fmt}{postfix}",
         )
-        prog.set_description(prefix)
+        prog.set_description(f"{ctx.id} | {prefix}")
         hist = {}
         for data_point in prog:
             # Transform data point
@@ -192,10 +191,16 @@ class Module(torch.nn.Module):
         ctx.log(prefix, "|", " | ".join(report))
         # Save all intermediate data pushed into context during training.
         for key, mem in ctx.collect_all():
-            path = ctx.path / key
-            res = np.concatenate(mem, axis=0)
-            np.save(path, res)
-            ctx.log(f"Saved {key}: {res.shape} ({res.dtype})")
+            if all(isinstance(x, np.ndarray) for x in mem):
+                # Save as a single numpy array
+                res = np.concatenate(mem, axis=0)
+                np.save(ctx.path / key, res)
+                ctx.log(f"Saved {key}: {res.shape} ({res.dtype})")
+            else:
+                # Save as plain text
+                for s in mem:
+                    ctx.log(s, file=f"{key}.txt", visible=False)
+                ctx.log(f"Saved {key} as {len(mem)} lines of text")
         # Generate preview
         with torch.no_grad():
             if isinstance(loader, DataSet):
@@ -204,7 +209,7 @@ class Module(torch.nn.Module):
                 assert isinstance(loader, DataLoader), loader
                 sample, truth = loader.dataset.sample(ctx.sample_size)
             sample, truth = self.transform(ctx, sample, truth)
-            prediction = self(sample).detach()
+            prediction = self(sample, train=ctx.train_mode).detach()
             preview = self.preview(sample, prediction, truth)
             if preview is not None:
                 cv2.imwrite(str(ctx.path / "preview.png"), cvtb.types.U8(preview))

@@ -83,7 +83,7 @@ class Conv(GenericModule):
         b, c_in, w_in, h_in = s_in.shape
         b, c_out, w_out, h_out = s_out.shape
         self.front = ConvPipe(c_in, c_mid, layers=8)
-        self.resize = transforms.Resize((w_out, h_out))
+        self.resize = transforms.Resize((w_out, h_out), antialias=True)
         self.back = ConvPipe(c_mid, c_mid, layers=8)
         self.expand = ExpandPipe(c_mid, c_out, layers=8)
 

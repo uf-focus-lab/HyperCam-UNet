@@ -27,7 +27,8 @@ class Signal:
             self.triggered = True
             print("")
             if self.context is not None:
-                self.context.log("[SIGNAL Triggered] Aborting...")
+                self.context.log(banner="SIGNAL Triggered: Aborting...")
+                self.context.log("[SIGNAL Triggered] Aborting...", visible=False)
             else:
                 print("[SIGNAL Triggered] Aborting...")
             print("Press Ctrl-C again to exit NOW")

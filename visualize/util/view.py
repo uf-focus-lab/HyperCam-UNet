@@ -115,7 +115,7 @@ def view(name, imGrid, margin=16, cursorNames=alphabet(), callback=None):
 	cv2.namedWindow(name, cv2.WINDOW_AUTOSIZE)
 	cv2.startWindowThread()
 	cv2.setWindowProperty(name, cv2.WND_PROP_TOPMOST, 1)
-	cv2.createTrackbar('band', name, 0, d-1, render)
+	cv2.createTrackbar('band', name, 150, d-1, render)
 	if callback is not None: cv2.setMouseCallback(name, callback)
 	render()
 	# Return all callbacks

@@ -35,14 +35,18 @@ def getDeviceID(force_cpu=False):
     """Get torch device according to system that it runs on"""
     if force_cpu:
         return 'cpu'
-    elif torch.cuda.is_available():
+    if torch.cuda.is_available():
         # Nvidia Cuda
         dev_number = getCudaNumber()
         if dev_number is None:
             return 'cuda'
         else:
             return f"cuda:{dev_number}"
-    elif torch.backends.mps.is_available():
+    else:
+        assert "CUDA_DEVICE" not in environ and "CUDA_DEV" not in environ, \
+            "CUDA is not available, but CUDA_DEVICE or CUDA_DEV is set.\n" \
+            "CHECK YOUR ENVIRONMENT VARIABLES OR DRIVER CONFIGURATIONS!"
+    if torch.backends.mps.is_available():
         # MacOS metal
         return 'mps'
     # No GPU available, fallback to CPU
@@ -51,4 +55,3 @@ def getDeviceID(force_cpu=False):
 
 # PyTorch device
 DEVICE = torch.device(getDeviceID(DEBUG))
-print(torch.cuda.is_available())

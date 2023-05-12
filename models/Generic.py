@@ -12,9 +12,10 @@ import torch.nn as nn
 from torchvision import transforms
 
 # Custom imports
+import cvtb
 from lib import Module, Context
 from util.augment import affine
-from util.map_spectral import map_spectral, LED_LIST
+from util.map_spectral import map_spectral, LED_LIST, REF_BANDS
 
 
 class CustomLoss(Module):
@@ -51,16 +52,22 @@ class GenericModule(Module):
     def preview(self, input, pred, truth):
         # Resize input to match prediction
         b, d, w, h = pred.shape
-        input = transforms.Resize((w, h))(input)
+        input = transforms.Resize((w, h), antialias=True)(input)
 
         input, pred, truth = map(rotate_axis, [input, pred, truth])
         # Map spectra to RGB
         input = input[:, :, :, [1, 2, 6]]
-        pred = map_spectral(pred)
-        truth = map_spectral(truth)
+        if d == len(REF_BANDS):
+            pred = map_spectral(pred)
+            truth = map_spectral(truth)
+        else:
+            assert d == len(LED_LIST), f"Invalid input dimension {d}"
+            pred = pred[:, :, :, [1, 2, 6]]
+            truth = truth[:, :, :, [1, 2, 6]]
         # Concatenate input and prediction into grids
         grid = [t.reshape(b * w, h, -1).swapaxes(0, 1) for t in [input, pred, truth]]
         grid = [t.cpu().numpy() for t in grid]
+        grid = [cvtb.types.scaleToFit(t) for t in grid]
         return np.concatenate(grid, axis=0)
 
     def transform(self, ctx: Context, *data_point):
@@ -75,6 +82,11 @@ class GenericModule(Module):
             if "AFFINE" in ctx.train_mode:
                 batch, truth = affine(batch, truth)
         return batch, truth, *data_point
+
+    def iterate_batch(self, ctx: Context, *data_point):
+        if not ctx.train_mode:
+            ctx.push("list", *data_point[2])
+        return super().iterate_batch(ctx, *data_point)
 
     def forward(self, x: torch.Tensor, train=None):
         if train and "NARROW_BAND" in train:

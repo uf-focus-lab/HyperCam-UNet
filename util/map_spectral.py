@@ -11,7 +11,7 @@ import numpy as np
 
 # Custom Modules
 import cvtb
-from check_util.param import LED_LIST, REF_BANDS
+from util.param import LED_LIST, REF_BANDS
 from util.device import DEVICE
 
 # Interpolate spectral raw

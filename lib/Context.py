@@ -7,8 +7,10 @@
 # ---------------------------------------------------------
 # Internal Modules
 import traceback
+from sys import stderr
 from pathlib import Path
-from os.path import exists
+from os import scandir, mkdir
+from os.path import isdir, basename
 from math import floor, ceil
 from datetime import datetime
 from shutil import rmtree
@@ -28,10 +30,15 @@ def getRunID(start_i: int = 0):
     i = start_i
     while True:
         name = f"{now}-{i:02d}"
-        if not exists(RUN_PATH / name):
+        if not isdir(RUN_PATH / name):
+            mkdir(RUN_PATH / name)
             return name
         else:
             i += 1
+
+
+def getRunList():
+    return [basename(_.path) for _ in scandir(RUN_PATH) if _.is_dir()]
 
 
 class Runtime:
@@ -81,8 +88,11 @@ class Context(Runtime):
                 print(*colorize.dark_grey(l, banner, r))
         # Print args if applicable
         if len(args):
-            with open(self.path / file, "a") as log:
-                print(*args, file=log)
+            if isdir(self.path):
+                with open(self.path / file, "a") as log:
+                    print(*args, file=log)
+            else:
+                print("# Unable to reach", self.path, file=stderr)
             # Duplex to stdout
             if visible:
                 print(*colorize.cyan(self.id), *colorize.dark_grey("|"), *colorize.light_grey(*args))
@@ -125,7 +135,9 @@ class Context(Runtime):
 class Run(Context):
     state = None
 
-    def __init__(self, id=getRunID()):
+    def __init__(self, id=None):
+        if id is None:
+            id = getRunID()
         super().__init__(id, RUN_PATH / id)
         self.signal.__enter__()
         self.signal.triggered = True
@@ -149,14 +161,21 @@ class Run(Context):
             self.signal.__exit__()
         elif errType is not None and errType != SystemExit:
             # Filter file name from traceback and replace with relative path
+            print(file=stderr)
+            print(*colorize.yellow("Traceback:"), file=stderr)
+            print(*colorize.yellow("=========="), file=stderr)
             for tb in traceback.extract_tb(trace):
-                tb.filename = relative(tb.filename)
+                tb.filename = str(relative(tb.filename))
+                # Print traceback
+                print(*colorize.dark_grey(f"  {tb.filename}:{tb.lineno}", tb.name), file=stderr)
+                print(*colorize.yellow("  " + tb.line.strip()), file=stderr)
             try:
                 rmtree(self.path)
             except:
                 pass
-            print("\n", err, "\n")
+            print("\n", *colorize.red(str(err).strip()), "\n", file=stderr)
             run_log.remove(self.id, "aborted on error")
+        return True
 
 
 if __name__ == "__main__":

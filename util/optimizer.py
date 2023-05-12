@@ -56,13 +56,15 @@ def optimizer(optim: type[torch.nn.Module]):
             # load state dictionary
             dir = RUN_PATH / runID / SAVE_DIR
             if remap is not None and isfile(dir / f"{remap}.pkl"):
-                state_dict = torch.load(dir / remap)
+                load_path = dir / f"{remap}.pkl"
             elif isfile(dir / state_dict_name):
-                state_dict = torch.load(dir / state_dict_name)
+                load_path = dir / state_dict_name
             else:
                 return ctx.log(
                     f"[WARNING] No state dictionary found for {class_name} at {relative(dir)}, skipping..."
                 )
+            state_dict = torch.load(load_path)
             self.load_state_dict(state_dict)
+            ctx.log(f"Optim state of {class_name} loaded from {relative(load_path)}")
 
     return CustomOptim

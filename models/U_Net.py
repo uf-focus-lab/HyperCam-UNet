@@ -33,7 +33,7 @@ class U_Node(Module):
             nn.init.normal_(layer.weight, mean=0, std=1e-4)
 
     def forward(self, x):
-        out = self.norm1(x)
+        # out = self.norm1(x)
         out = self.conv1(x)
         out = self.relu1(out)
         # out = self.norm2(out)
