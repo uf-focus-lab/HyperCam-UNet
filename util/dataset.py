@@ -1,3 +1,11 @@
+# ---------------------------------------------------------
+# Yuxuan Zhang
+# Dept. of Electrical and Computer Engineering
+# University of Florida
+# ---------------------------------------------------------
+# TODO: Add description
+# ---------------------------------------------------------
+# PIP Modules
 import sys
 from glob import glob
 from math import floor
@@ -15,6 +23,7 @@ import numpy as np
 # Custom modules
 import cvtb
 from util.env import VAR_PATH, DATA_PATH
+import util.preprocess as preprocess
 
 RAW_DATA_PATH = DATA_PATH / "raw"
 REF_DATA_PATH = DATA_PATH / "ref"
@@ -64,6 +73,7 @@ def load(fileID: str):
         assert isfile(path), path
         # Load data matrix
         data = cvtb.types.F32(np.load(str(path)))
+        # Transform to torch tensor
         h, w, d = data.shape
         data = torch.from_numpy(data.astype(np.float32))
         # Rearrange axes (h, w, d) => (d, w, h)
@@ -72,18 +82,17 @@ def load(fileID: str):
 
     data = _load(RAW_DATA_PATH / fileName)
     truth = _load(REF_DATA_PATH / fileName)
-    return data, truth, fileID
+    return data, truth
 
 
 class DataSet(TorchDataset):
     """Custom dataset implementation"""
 
     @classmethod
-    def load(cls, reload: bool = False, ratio: float = 0.1):
-        train_list, test_list = getList(reload, ratio)
-        return cls(train_list), cls(test_list)
+    def load(cls, *flags: str, reload: bool = False, ratio: float = 0.1, device=None):
+        return [cls(l, *flags, device=device) for l in getList(reload, ratio)]
 
-    def sample(self, count: int = 1, device=None):
+    def sample(self, count: int = 1):
         # Randomly return [count] items as the sample
         idx = list(range(len(self)))
         shuffle(idx)
@@ -93,12 +102,9 @@ class DataSet(TorchDataset):
         data, truth, fileID = zip(*sample)
         data = torch.stack(data)
         truth = torch.stack(truth)
-        if device is not None:
-            data = data.to(device)
-            truth = truth.to(device)
         return data, truth
 
-    def __init__(self, idList, augment=None):
+    def __init__(self, idList, *flags: str, device=None):
         """
         load dataset from a given data set collection
         """
@@ -106,12 +112,20 @@ class DataSet(TorchDataset):
             print("No data given", file=sys.stderr)
             raise Exception
         self.data_points = idList
-        # Add augmentation
-        self.augment = augment
+        self.flags = flags
+        self.device = device
 
     def __len__(self):
         return len(self.data_points)
 
     def __getitem__(self, idx):
         fileID = self.data_points[idx]
-        return load(fileID)
+        data, truth = load(fileID)
+        # Send to device
+        if self.device is not None:
+            data = data.to(self.device)
+            truth = truth.to(self.device)
+        # Apply preprocessing
+        if "REMOVE_SPOTS" in self.flags:
+            data = preprocess.remove_spots(data)
+        return data, truth, fileID

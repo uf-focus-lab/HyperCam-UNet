@@ -8,9 +8,10 @@
 from .Conv import Conv
 from .U_Net import U_Net
 from lib.Module import Module
+from .loss import *
 
 
-MODELS: dict[Module] = {
+MODELS: dict[str, type[Module]] = {
     "Conv": Conv,
     "U_Net": U_Net,
 }

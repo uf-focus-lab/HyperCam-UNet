@@ -1,4 +1,11 @@
-# Author: Yuxuan Zhang
+# ---------------------------------------------------------
+# Yuxuan Zhang
+# Dept. of Electrical and Computer Engineering
+# University of Florida
+# ---------------------------------------------------------
+# TODO: Add description
+# ---------------------------------------------------------
+# PIP Modules
 from collections import namedtuple
 # Prototype of named tuple that describes a LED
 LED = namedtuple("LED", ["name", "bandwidth", "delta"])

@@ -44,6 +44,7 @@ def getRunList():
 class Runtime:
     epochs: int = None
     train_mode: list[str] = None
+    loss: torch.nn.Module = None
     optimizer: torch.nn.Module = None
     sample_size: int = 5
 
@@ -66,6 +67,9 @@ class Context(Runtime):
 
     def __exit__(self, *args):
         pass
+
+    def context(self, context_name: str, **kwargs):
+        return Context(self.id, self.path / context_name, self, **kwargs)
 
     def log(self, *args, file="log.txt", banner=None, visible=True):
         if len(args) == 0 and banner is None:
@@ -141,11 +145,9 @@ class Run(Context):
         super().__init__(id, RUN_PATH / id)
         self.signal.__enter__()
         self.signal.triggered = True
-        self.log(banner=f"RUN ID: {id}")
+        self.log(banner="Context Initialization")
+        self.log("RUN ID:", id)
         run_log.add(id)
-
-    def context(self, context_name="train", **kwargs):
-        return Context(self.id, self.path / context_name, self, **kwargs)
 
     def interrupt(self, code: int = -1):
         self.log("")

@@ -30,7 +30,7 @@ class U_Node(Module):
         self.relu2 = nn.ReLU()
         # Random init
         for layer in [self.conv1, self.conv2]:
-            nn.init.normal_(layer.weight, mean=0, std=1e-4)
+            nn.init.xavier_normal_(layer.weight)
 
     def forward(self, x):
         # out = self.norm1(x)
@@ -120,7 +120,8 @@ class Decoder(Module):
             ctx.log(
                 "Decoder node shape",
                 tuple(s.shape),
-                f"(feat. fwd shape {tuple(f.shape)})",
+                "|",
+                f"ff. shape {tuple(f.shape)}",
             )
         self.layers = nn.ModuleList(layers)
 

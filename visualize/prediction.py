@@ -33,7 +33,6 @@ def UI_LOOP(ctx: Context, REF, PRD, RAW, DIF, prefix="Unknown"):
         w = cvtb.fx.gaussian(wavelength, 5)(led_bands)
         idx = np.argmax(w)
         gray = np.average(cvtb.types.F32(RAW), axis=2, weights=w)
-        print(gray.shape)
         gray = cvtb.types.U8(gray)
         gray = cv2.resize(gray, (307, 307))
         return np.stack([gray] * 3, axis=2)
@@ -84,11 +83,11 @@ def UI_LOOP(ctx: Context, REF, PRD, RAW, DIF, prefix="Unknown"):
             return False
         elif key == KEYCODE["enter"] or key == ord("s"):
             path = ctx.path
-            print("Saving...")
             # Generate grid image
             update_cursor(None)
             grid_img, band_number = rasterize()
             cv2.imwrite(str(path / "grid.png"), grid_img)
+            grid_img = cv2.resize(grid_img, (800, 800))
             # Generate band plots
             if len(plot_list) == 0: return True
             imgs = []
@@ -107,30 +106,29 @@ def UI_LOOP(ctx: Context, REF, PRD, RAW, DIF, prefix="Unknown"):
             img = np.concatenate(imgs, axis=1)
             cv2.imwrite(str(path / "bands.png"), img)
             # Merge the results
-            SIZE = 1236
-            pad_top = 255 * np.ones((190, SIZE, 3), dtype=np.uint8)
-            pad_bottom = 255 * np.ones((174, SIZE, 3), dtype=np.uint8)
+            # SIZE = 1236
+            # pad_top = 255 * np.ones((190, SIZE, 3), dtype=np.uint8)
+            # pad_bottom = 255 * np.ones((174, SIZE, 3), dtype=np.uint8)
 
-            blank = np.ones((256, SIZE, 3), dtype=np.uint8) * 255
-            txt = trim(text(
-                blank,
-                "Sample Points",
-                (0, 128), color=(0, 0, 0), scale=1.4, w=2
-            ))
-            # Add text into blank space
-            h, w, _ = txt.shape
-            rx = [int((SIZE - w) / 2), None]
-            rx[1] = rx[0] + w
-            ry = [120 - h, 120]
-            pad_bottom[ry[0]:ry[1], rx[0]:rx[1]] = txt
+            # blank = np.ones((256, SIZE, 3), dtype=np.uint8) * 255
+            # txt = trim(text(
+            #     blank,
+            #     "Sample Points",
+            #     (0, 128), color=(0, 0, 0), scale=1.4, w=2
+            # ))
+            # # Add text into blank space
+            # h, w, _ = txt.shape
+            # rx = [int((SIZE - w) / 2), None]
+            # rx[1] = rx[0] + w
+            # ry = [120 - h, 120]
+            # pad_bottom[ry[0]:ry[1], rx[0]:rx[1]] = txt
 
-            grid_img = np.concatenate((pad_top, cv2.resize(grid_img, (SIZE, SIZE)), pad_bottom), axis=0)
-
-            merged_img = trim(np.concatenate(
-                (grid_img, 255 * np.ones((img.shape[0], 20, 3), dtype=np.uint8), img),
-                axis=1
-            ))
-            cv2.imwrite(str(path) + '.png', merged_img)
+            # grid_img = np.concatenate((pad_top, cv2.resize(grid_img, (SIZE, SIZE)), pad_bottom), axis=0)
+            # merged_img = trim(np.concatenate(
+            #     (grid_img, 255 * np.ones((img.shape[0], 20, 3), dtype=np.uint8), img),
+            #     axis=1
+            # ))
+            # cv2.imwrite(str(path) + '.png', merged_img)
             return True
         else:
             return key
@@ -161,12 +159,14 @@ def main(ctx: Context, **kwargs: tuple[list[str], np.ndarray]):
     activePointIdx = normalizeIndex(activePointIdx, idList)
     # Drive current displayed point
     fileID = idList[activePointIdx]
+    print("viewing", fileID)
     PRD = predList[activePointIdx]
     RAW = load(fileID, 'raw')
     REF = load(fileID, 'ref')
     DIF = diff(PRD, REF)
     # Start main UI loop
-    key = UI_LOOP(ctx, REF, PRD, RAW, DIF, prefix=f"{fileID} @ Run {ctx.id} ({prefix})")
+    with ctx.context(fileID):
+        key = UI_LOOP(ctx, REF, PRD, RAW, DIF, prefix=f"{fileID} @ Run {ctx.id} ({prefix})")
     # Match key to action
     if (not key) or key == ord("q"): return False
     # Arrow keys (up & down) switch the dataset
@@ -175,7 +175,9 @@ def main(ctx: Context, **kwargs: tuple[list[str], np.ndarray]):
     # Arrow keys (left & right) navigate the dataset
     elif key == KEYCODE["arrow_left"]: activePointIdx -= 1
     elif key == KEYCODE["arrow_right"]: activePointIdx += 1
-    else: return True
+    else:
+        print("Unknown key:", key)
+        return True
     cv2.destroyAllWindows()
     cv2.waitKey(10)
     return True

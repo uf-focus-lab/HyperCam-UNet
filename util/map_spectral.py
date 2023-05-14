@@ -21,12 +21,12 @@ for name, bandwidth, delta in LED_LIST:
     gaussian = cvtb.fx.gaussian(bandwidth, delta / 20)
     gaussian = torch.Tensor(gaussian(x))
     gaussian = gaussian / torch.sum(gaussian)
+    gaussian = gaussian.view(1, -1, 1, 1)
     weights.append(gaussian.to(DEVICE))
 
 
 def map_spectral(img: torch.Tensor, leds=[1, 2, 6]):
     assert img.device == DEVICE
-    dim = img.ndim - 1
-    img = [torch.sum(img * weights[i], dim=dim) for i in leds]
-    img = torch.stack(img, dim=dim)
+    img = [torch.sum(img * weights[i], dim=1) for i in leds]
+    img = torch.stack(img, dim=1)
     return img

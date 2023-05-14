@@ -20,12 +20,22 @@ parser.add_argument("-m", "--model", type=str, required=True, help="Name of the 
 
 parser.add_argument(
     "-M",
+    "-f",
     "--train-mode",
     type=str,
     default=["generic"],
     action="append",
     nargs="*",
     help="Training mode to be passed towards model.",
+)
+
+parser.add_argument(
+    "-p",
+    "--preprocess",
+    type=str,
+    default=[],
+    nargs="*",
+    help="Preprocessing flags.",
 )
 
 parser.add_argument("-e", "--epochs", type=int, default=10, help="Number of epochs")
@@ -116,6 +126,10 @@ def normalizeRunPaths(kwargs) -> dict[str, tuple[Path, str | None]]:
     return kwargs
 
 
+def normalizeFlag(s: str) -> str:
+    return s.strip().upper().replace("-", "_")
+
+
 if __name__ == "__main__":
     parser.print_help()
     print(parser.parse_args(["-m", "model-name"]))
@@ -126,9 +140,8 @@ else:
     RUN_TRAIN = CMD in ["run-all", "train"]
     RUN_TEST = CMD in ["run-all", "test"]
     model: str = ARGS.model
-    train_mode: list[str] = [
-        s.replace("-", "_").upper() for s in flatten(ARGS.train_mode)
-    ]
+    train_mode = list(map(normalizeFlag, flatten(ARGS.train_mode)))
+    preprocess = list(map(normalizeFlag, flatten(ARGS.preprocess)))
     epochs: int = ARGS.epochs
     batch_size: int = ARGS.batch_size
     learning_rate: float = ARGS.learning_rate

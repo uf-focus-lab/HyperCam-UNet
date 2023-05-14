@@ -27,10 +27,9 @@ SAVE_DIR = "states"
 
 
 class Module(torch.nn.Module):
-    def __init__(self, ctx=None, *args, device=None, sample=None, loss=None):
+    def __init__(self, ctx=None, *args, device=None, sample=None):
         super().__init__()
         self.device = device
-        self.loss = loss
 
     def save(self, ctx: Context, path: Path = None, suffix=[]):
         """Overload this function for custom loading / saving"""
@@ -124,14 +123,6 @@ class Module(torch.nn.Module):
                 full_name,
                 "skipping...",
             )
-
-    # Virtual Function
-    def lossFunction(self, pred: torch.Tensor, truth: torch.Tensor) -> torch.Tensor:
-        """Calculates loss from given prediction against ground truth"""
-        if self.loss is None:
-            print(self.loss)
-            raise NotImplementedError
-        return self.loss(pred, truth)
 
     # Virtual Function - Optional
     def preview(self, input: torch.Tensor, pred: torch.Tensor, truth: torch.Tensor):
@@ -228,7 +219,7 @@ class Module(torch.nn.Module):
         # Compute truth
         truth = truth.to(self.device)
         # Compute loss
-        loss = self.lossFunction(prediction, truth)
+        loss = ctx.loss(prediction, truth)
         # Check for run mode
         if ctx.train_mode:
             # Clear previously computed gradient

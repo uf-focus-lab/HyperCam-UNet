@@ -23,10 +23,10 @@ from util.optimizer import optimizer
 import util.args as args
 
 # Model imports
-from models import MODELS
+from models import MODELS, CustomLoss
 
 # Initialize datasets
-train_set, test_set = DataSet.load()
+train_set, test_set = DataSet.load(*args.preprocess, device=DEVICE)
 # Create context
 with Run() as run:
     # Initialize random seed (IMPORTANT!!!)
@@ -35,7 +35,7 @@ with Run() as run:
     # Initialize model
     run.log(banner="Model Initialization")
     Model = MODELS[args.model]
-    model: Module = Model(run, DEVICE, train_set.sample(device=DEVICE))
+    model = Model(run, DEVICE, train_set.sample())
     model.to(DEVICE)
     # Model too large to be displayed
     run.log(model, file="model.txt", visible=False)
@@ -60,8 +60,10 @@ with Run() as run:
         if args.load:
             run.log(banner="Loading Optimizer States")
             optim.load(run, **args.load)
+        # Initialize loss function
+        loss = CustomLoss().to(DEVICE)
         with run.context(
-            "train", optimizer=optim, epochs=args.epochs, train_mode=args.train_mode
+            "train", optimizer=optim, loss=loss, epochs=args.epochs, train_mode=args.train_mode
         ) as ctx:
             train_loader = DataLoader(train_set, batch_size=args.batch_size)
             ctx.log(banner="Training Model")
@@ -71,12 +73,12 @@ with Run() as run:
         model.save(run)
         optim.save(run)
         # Run test on training set
-        with run.context("train") as ctx:
+        with run.context("train", loss=loss) as ctx:
             ctx.log(banner="Running Prediction on TRAINING SET")
             model.run(ctx, train_set)
     # ================================== TEST =================================
     if args.RUN_TEST:
-        with run.context("test") as ctx:
+        with run.context("test", loss=loss) as ctx:
             ctx.log(banner="Running Prediction on TEST SET")
             model.run(ctx, test_set)
     # Visualize

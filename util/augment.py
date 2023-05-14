@@ -1,11 +1,19 @@
-from torch import Tensor, from_numpy, flip, cat, mean
+# ---------------------------------------------------------
+# Yuxuan Zhang
+# Dept. of Electrical and Computer Engineering
+# University of Florida
+# ---------------------------------------------------------
+# TODO: Add description
+# ---------------------------------------------------------
+# PIP Modules
+from torch import Tensor, from_numpy, flip, cat, mean, arange
 import torchvision.transforms.functional as f
 from random import random
 import numpy as np
 import cv2
 
 
-def randfloat(l: float, r: float) -> float:
+def randFloat(l: float, r: float) -> float:
     if r == l:
         return l
     return l + random() * (r - l)
@@ -15,18 +23,18 @@ def affine(
     *samples: Tensor, rot_r=[-30, 30], trans_r=[-0.2, 0.2], scale_r=[0.8, 1.6], shear=[-5, 5]
 ):
     # -180 ~ +180 degrees
-    angle = randfloat(*rot_r)
+    angle = randFloat(*rot_r)
     # Depending on size of the tensor
-    tH, tW = [randfloat(*trans_r) for _ in range(2)]
+    tH, tW = [randFloat(*trans_r) for _ in range(2)]
 
     def translate(img: Tensor):
         H, W = list(img.shape)[-2:]
         return (int(H * tH), int(W * tW))
 
     # Any float number
-    scale = randfloat(*scale_r)
+    scale = randFloat(*scale_r)
     # Any float number
-    shear = [randfloat(*shear) for _ in range(2)]
+    shear = [randFloat(*shear) for _ in range(2)]
 
     # mapping callback
     def apply(sample: Tensor):
@@ -48,7 +56,13 @@ def affine(
         )
         # Crop the sample to original size
         # sample = sample[:, :, h : 2 * h, w : 2 * w].contiguous()
-        return sample
+        # Flip samples in a certain order
+        idx = arange(sample.shape[0])
+        mask1 = idx % 2 == 1
+        mask2 = idx % 4 >= 2
+        sample[mask1] = sample[mask1].flip([2])
+        sample[mask2] = sample[mask1].flip([3])
+        return sample.contiguous()
 
     # perform transform on all given samples
     return list(map(apply, samples))
