@@ -170,11 +170,11 @@ def main(ctx: Context, **kwargs: tuple[list[str], np.ndarray]):
     # Match key to action
     if (not key) or key == ord("q"): return False
     # Arrow keys (up & down) switch the dataset
-    elif key == KEYCODE["arrow_up"]: activeDatasetIdx -= 1
-    elif key == KEYCODE["arrow_down"]: activeDatasetIdx += 1
+    elif key == ord("-"): activeDatasetIdx -= 1
+    elif key == ord("="): activeDatasetIdx += 1
     # Arrow keys (left & right) navigate the dataset
-    elif key == KEYCODE["arrow_left"]: activePointIdx -= 1
-    elif key == KEYCODE["arrow_right"]: activePointIdx += 1
+    elif key == ord("["): activePointIdx -= 1
+    elif key == ord("]"): activePointIdx += 1
     else:
         print("Unknown key:", key)
         return True
