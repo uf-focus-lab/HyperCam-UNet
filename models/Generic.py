@@ -60,7 +60,8 @@ class GenericModule(Module):
             if "NARROW_BAND" in ctx.train_mode:
                 truth = map_spectral(truth, range(len(LED_LIST)))
             if "AFFINE" in ctx.train_mode:
-                batch, truth = affine(batch, truth)
+                for i in range(len(batch)):
+                    batch[i:i+1], truth[i:i+1] = affine(batch[i:i+1], truth[i:i+1])
             if "MIX_IN" in ctx.train_mode:
                 mix = map_spectral(truth, range(len(LED_LIST)))
                 mix = transforms.Resize(list(batch.shape[-2:]), antialias=True)(mix)
