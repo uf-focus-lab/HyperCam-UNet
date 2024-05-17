@@ -4,9 +4,11 @@ from inspect import isfunction
 # PIP Packages
 import cv2
 import numpy as np
+# Project Provided Packages
+from util.map_spectral import map_spectral
 
 
-alphabet = lambda: list(map(chr, range(65, 91)))
+alphabet = lambda: list(map(chr, range(ord('A'), ord('Z') + 1))) 
 
 
 def trim(img: np.ndarray, f = lambda a: np.min(a) >= 255)->np.ndarray:
@@ -43,8 +45,7 @@ def marker(img, pos, color, style=cv2.MARKER_CROSS, size=12, weight=1):
 	return cv2.drawMarker(img, pos, color, style, size, weight)
 
 
-def view(name, imGrid, margin=16, cursorNames=alphabet(), callback=None):
-	cursorNames.reverse()
+def view(name, imGrid, margin=16, cursorNames: list[str]=alphabet()[::-1], callback=None):
 	# Initialize parameters
 	h, w, d = imGrid[0][0].shape
 	band_number = 0
@@ -58,12 +59,13 @@ def view(name, imGrid, margin=16, cursorNames=alphabet(), callback=None):
 	v_blank = (2 * h + margin, margin, 3)
 	v_blank = np.zeros(v_blank, np.uint8) + 255
 	# Generates new image matrix
-	def rasterize():
+	def rasterize(export = False):
 		nonlocal band_number, margin
 		grid = []
 		for img, txt, color in imGrid:
-			if isfunction(img): img = img(band_number)
-			else: img = rgb(img[:, :, band_number].copy())
+			if isfunction(img): img = img(band_number if not export else None)
+			elif not export: img = rgb(img[:, :, band_number].copy())
+			else: img = map_spectral(img)
 			# Render image title text
 			img = text(img, txt, text_pos, color)
 			# Render selection markers
@@ -83,7 +85,7 @@ def view(name, imGrid, margin=16, cursorNames=alphabet(), callback=None):
 			v_blank,
 			np.concatenate([c, h_blank, d], axis=0)
 		]
-		return np.concatenate(cols, axis=1), band_number
+		return np.concatenate(cols, axis=1), band_number if export else None
 	# Draws rasterized image buffer to window
 	def render(i = None):
 		nonlocal band_number

@@ -21,14 +21,26 @@ LED_BANDS = [led.bandwidth for led in LED_LIST]
 led_bands = np.array(LED_BANDS).copy().astype(np.float64)
 
 def diff(X: np.ndarray, Y: np.ndarray):
-    B, G, R = [np.zeros(X.shape, dtype=np.uint8) for _ in range(3)]
-    R = (X > Y) * (X - Y)
-    B = (Y > X) * (Y - X)
-    return np.stack([B, G, R], axis=2)
+    if False:
+        B, G, R = [np.zeros(X.shape, dtype=np.uint8) for _ in range(3)]
+        R = (X > Y) * (X - Y)
+        B = (Y > X) * (Y - X)
+        return np.stack([B, G, R], axis=2)
+    else:
+        X_norm = np.linalg.norm(X, axis=2)
+        Y_norm = np.linalg.norm(Y, axis=2)
+        # Calculate the angle
+        cos_theta = np.sum(X * Y, axis=2) / (X_norm * Y_norm)
+        theta = np.arccos(cos_theta)
+        theta /= np.max(theta)
+        ret = np.stack([1 - theta, np.zeros_like(theta), theta], axis=2) * 255
+        return np.rint(ret).astype(np.uint8)
 
 def UI_LOOP(ctx: Context, REF, PRD, RAW, DIF, prefix="Unknown"):
     # Interpolate spectral raw
-    def raw(i):
+    def raw(i: int | None = None):
+        if i is None:
+            return cvtb.types.U8(RAW[:, :, [1, 2, 6]])
         wavelength = REF_BANDS[i]
         w = cvtb.fx.gaussian(wavelength, 5)(led_bands)
         idx = np.argmax(w)
@@ -36,8 +48,11 @@ def UI_LOOP(ctx: Context, REF, PRD, RAW, DIF, prefix="Unknown"):
         gray = cvtb.types.U8(gray)
         gray = cv2.resize(gray, (307, 307))
         return np.stack([gray] * 3, axis=2)
-    def dif(i):
-        return cvtb.types.U8(DIF[:, :, :, i])
+    def dif(i: int | None = None):
+        if (len(DIF.shape) == 3):
+            return cvtb.types.U8(DIF)
+        else:
+            return cvtb.types.U8(DIF[:, :, :, i])
     # Mouse callback
     plot_list = []
     def mouseCallback(e, x, y, flags, param):
@@ -67,7 +82,7 @@ def UI_LOOP(ctx: Context, REF, PRD, RAW, DIF, prefix="Unknown"):
     rasterize, update_cursor, render = view(
         f"Inspecting {prefix}",
         [
-            (ref, "Ground Truth"          , ( 64,  64, 255)),
+            (ref, "Ground Truth"          , (255, 255, 255)),
             (prd, "Model Prediction"      , ( 64, 255, 255)),
             (raw, "Raw image (our camera)", (200, 255,  64)),
             (dif, "Prediction error"      , (128, 255, 128)),
@@ -85,7 +100,7 @@ def UI_LOOP(ctx: Context, REF, PRD, RAW, DIF, prefix="Unknown"):
             path = ctx.path
             # Generate grid image
             update_cursor(None)
-            grid_img, band_number = rasterize()
+            grid_img, _ = rasterize(None)
             cv2.imwrite(str(path / "grid.png"), grid_img)
             grid_img = cv2.resize(grid_img, (800, 800))
             # Generate band plots
@@ -165,7 +180,7 @@ def main(ctx: Context, **kwargs: tuple[list[str], np.ndarray]):
     REF = load(fileID, 'ref')
     DIF = diff(PRD, REF)
     # Start main UI loop
-    with ctx.context(fileID):
+    with ctx.context(fileID) as ctx:
         key = UI_LOOP(ctx, REF, PRD, RAW, DIF, prefix=f"{fileID} @ Run {ctx.id} ({prefix})")
     # Match key to action
     if (not key) or key == ord("q"): return False
@@ -199,4 +214,4 @@ if __name__ == "__main__":
     with Context(runID, runPath / "visualize") as ctx:
         train = load_pred_list(runPath / "train")
         test = load_pred_list(runPath / "test")
-        while main(ctx, train=train, test=test): pass
+        while main(ctx, test=test, train=train): pass

@@ -31,17 +31,23 @@ def save_train_log(runID: str):
     fig = plt.figure(dpi=500, figsize=(10, 5))
     ax = fig.gca()
     for key, value in records.items():
-        ax.plot(*zip(*value), label=key)
+        ax.plot(*zip(*value[:200]), label=key)
     fig.legend()
-    fig.savefig(RUN_PATH / runID / "train.png", transparent=True)
+    fig.savefig(RUN_PATH / runID / "train.svg", transparent=True)
     print(f"Run {runID}: train log saved.")
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
+    import matplotlib, matplotlib.pyplot as plt
     from argparse import ArgumentParser
     from os.path import isfile
     from lib.Context import getRunList
     from util.env import RUN_PATH
+
+    font = {'family' : 'Times New Roman',
+            'weight' : 'normal',
+            'size'   : 11}
+    matplotlib.rc('font', **font)
+
     parser = ArgumentParser()
     parser.add_argument("runID", type=str, nargs="*", help="Run ID")
     args = parser.parse_args()

@@ -85,3 +85,40 @@ def _remove_spots(hsi: torch.Tensor) -> torch.Tensor:
     # Clean up memory
     del idx, remainder, mask, p_layers, peak, grid_w, grid_h
     return hsi.contiguous()
+
+if __name__ == "__main__":
+    import cvtb, cv2, numpy as np
+    from util.dataset import DataSet
+    from util.device import DEVICE
+    from torchvision import transforms
+    from util.map_spectral import map_spectral, LED_LIST, REF_BANDS
+
+    def rotate_axis(x: torch.Tensor):
+        """(b, d, w, h) -> (b, w, h, d)"""
+        x = x.swapaxes(1, 3)
+        x = x.swapaxes(1, 2)
+        return x.contiguous()
+
+    train_set, test_set = DataSet.load(device=DEVICE)
+    # Resize input to match maskiction
+    batch, _ = train_set.sample(5)
+    b, d, w, h = batch.shape
+    mask = []
+    truth = []
+    for i in range(b):
+        mask.append(batch[i] >= __otsu_threshold(batch[i]))
+        truth.append(remove_spots(batch[i]))
+    mask = torch.stack(mask, dim=0).to(torch.float32)
+    truth = torch.stack(truth, dim=0)
+    # Rotate axis
+    batch, mask, truth = map(rotate_axis, [batch, mask, truth])
+    # Map spectra to RGB
+    batch = batch[:, :, :, [1, 2, 6]]
+    mask = mask[:, :, :, [1, 2, 6]]
+    truth = truth[:, :, :, [1, 2, 6]]
+    # Concatenate input and prediction into grids
+    grid = [t.reshape(b * w, h, -1).swapaxes(0, 1) for t in [batch, mask, truth]]
+    grid = [t.cpu().numpy() for t in grid]
+    grid = [cvtb.types.scaleToFit(t) for t in grid]
+    img = cvtb.types.U8(np.concatenate(grid, axis=0))
+    cv2.imwrite("sample.png", img)

@@ -25,7 +25,10 @@ for name, bandwidth, delta in LED_LIST:
     weights.append(gaussian.to(DEVICE))
 
 
-def map_spectral(img: torch.Tensor, leds=[1, 2, 6]):
+def map_spectral(img: torch.Tensor | np.ndarray, leds=[1, 2, 6]):
+    if isinstance(img, np.ndarray):
+        img = torch.from_numpy(img).to(DEVICE)
+        return map_spectral(img, leds).to("cpu").numpy()
     assert img.device == DEVICE
     img = [torch.sum(img * weights[i], dim=1) for i in leds]
     img = torch.stack(img, dim=1)
