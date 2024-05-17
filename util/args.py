@@ -139,6 +139,10 @@ else:
     CMD = command[0] if len(command) else "run-all"
     RUN_TRAIN = CMD in ["run-all", "train"]
     RUN_TEST = CMD in ["run-all", "test"]
+    RUN_PREDICT = CMD == "predict"
+    if RUN_PREDICT:
+        assert len(command) == 2, "predict [path]"
+        PREDICT_PATH = Path(command[1])
     model: str = ARGS.model
     train_mode = list(map(normalizeFlag, flatten(ARGS.train_mode)))
     preprocess = list(map(normalizeFlag, flatten(ARGS.preprocess)))
